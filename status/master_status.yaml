@@ -1,0 +1,41 @@
+last_updated: ""
+current_task: null
+agents:
+  shogun:
+    status: idle
+    last_action: ""
+  karo:
+    status: idle
+    current_subtasks: 0
+  ashigaru1:
+    status: idle
+    current_task: null
+    progress: 0
+  ashigaru2:
+    status: idle
+    current_task: null
+    progress: 0
+  ashigaru3:
+    status: idle
+    current_task: null
+    progress: 0
+  ashigaru4:
+    status: idle
+    current_task: null
+    progress: 0
+  ashigaru5:
+    status: idle
+    current_task: null
+    progress: 0
+  ashigaru6:
+    status: idle
+    current_task: null
+    progress: 0
+  ashigaru7:
+    status: idle
+    current_task: null
+    progress: 0
+  ashigaru8:
+    status: idle
+    current_task: null
+    progress: 0
