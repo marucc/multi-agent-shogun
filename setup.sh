@@ -124,7 +124,7 @@ PANE_COLORS=("1;31" "1;34" "1;34" "1;34" "1;34" "1;34" "1;34" "1;34" "1;34")  # 
 
 for i in {0..8}; do
     tmux select-pane -t "multiagent:0.$i" -T "${PANE_TITLES[$i]}"
-    tmux send-keys -t "multiagent:0.$i" "cd $(pwd) && export PS1='(\[\033[${PANE_COLORS[$i]}m\]${PANE_TITLES[$i]}\[\033[0m\]) \[\033[1;32m\]\w\[\033[0m\]\$ ' && clear" C-m
+    tmux send-keys -t "multiagent:0.$i" "cd $(pwd) && export PS1='(\[\033[${PANE_COLORS[$i]}m\]${PANE_TITLES[$i]}\[\033[0m\]) \[\033[1;32m\]\w\[\033[0m\]\$ ' && clear" Enter
 done
 
 log_success "  └─ 家老・足軽の陣、構築完了"
@@ -133,7 +133,7 @@ echo ""
 # STEP 3: shogunセッション作成（1ペイン）
 log_war "👑 将軍の本陣を構築中..."
 tmux new-session -d -s shogun
-tmux send-keys -t shogun "cd $(pwd) && export PS1='(\[\033[1;35m\]将軍\[\033[0m\]) \[\033[1;32m\]\w\[\033[0m\]\$ ' && clear" C-m
+tmux send-keys -t shogun "cd $(pwd) && export PS1='(\[\033[1;35m\]将軍\[\033[0m\]) \[\033[1;32m\]\w\[\033[0m\]\$ ' && clear" Enter
 
 log_success "  └─ 将軍の本陣、構築完了"
 echo ""
@@ -191,10 +191,10 @@ echo "     csm   # 家老・足軽の陣へ（または tmux attach-session -t m
 echo ""
 echo "  【弐】Claude Codeを召喚せよ (Summon Claude Code)"
 echo "     # まず将軍を召喚"
-echo "     tmux send-keys -t shogun 'claude --dangerously-skip-permissions' C-m"
+echo "     tmux send-keys -t shogun 'claude --dangerously-skip-permissions' Enter"
 echo ""
 echo "     # 続いて家老・足軽を一斉召喚"
-echo "     for i in {0..8}; do tmux send-keys -t multiagent:0.\$i 'claude --dangerously-skip-permissions' C-m; done"
+echo "     for i in {0..8}; do tmux send-keys -t multiagent:0.\$i 'claude --dangerously-skip-permissions' Enter; done"
 echo ""
 echo "  【参】指示書を確認せよ (Check instruction scrolls)"
 echo "     将軍: instructions/shogun.md"
