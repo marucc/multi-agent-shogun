@@ -303,6 +303,28 @@ Session 2: AI reads memory at startup
 Agents communicate via YAML files and wake each other with tmux send-keys.
 **No API calls are wasted on polling loops.**
 
+### 📸 5. Screenshot Support
+
+VSCode's Claude Code extension lets you paste screenshots to explain issues. This CLI system brings the same capability:
+
+```
+# Configure your screenshot folder in config/settings.yaml
+screenshot:
+  path: "/mnt/c/Users/YourName/Pictures/Screenshots"
+
+# Then just tell the Shogun:
+You: "Check the latest screenshot"
+You: "Look at the last 2 screenshots"
+→ AI reads and analyzes your screenshots instantly
+```
+
+**💡 Windows Tip:** Press `Win + Shift + S` to take a screenshot. Configure the save location to match your `settings.yaml` path for seamless integration.
+
+Perfect for:
+- Explaining UI bugs visually
+- Showing error messages
+- Comparing before/after states
+
 ---
 
 ## 🔌 MCP Setup Guide
