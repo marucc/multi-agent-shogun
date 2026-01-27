@@ -16,31 +16,41 @@
 
 ---
 
-## 🚀 クイックスタート（3ステップ）
+## 🚀 クイックスタート
 
-### 1. 必要環境
+### 🪟 Windowsユーザー（推奨）
 
-- **WSL2**（Ubuntu推奨）
-- **tmux**: `sudo apt install tmux`
-- **Claude Code CLI**: [インストールガイド](https://claude.ai/code)
+1. **ダウンロード**
+   ```
+   git clone https://github.com/yohey-w/multi-agent-shogun.git C:\tools\multi-agent-shogun
+   ```
+   または [ZIPダウンロード](https://github.com/yohey-w/multi-agent-shogun/archive/refs/heads/main.zip) して `C:\tools\multi-agent-shogun` に展開
 
-### 2. インストール
+2. **インストール** - `install.bat` をダブルクリック
+   - WSL2、tmux、Node.js、Claude Code CLI を自動インストール
+
+3. **毎日の起動** - WSLターミナルで:
+   ```bash
+   cd /mnt/c/tools/multi-agent-shogun
+   ./shutsujin_departure.sh
+   ```
+
+### 🐧 Linux / Mac ユーザー
 
 ```bash
-git clone https://github.com/yohey-w/multi-agent-shogun.git /mnt/c/tools/claude-shogun
-cd /mnt/c/tools/claude-shogun
+# 1. クローン
+git clone https://github.com/yohey-w/multi-agent-shogun.git ~/multi-agent-shogun
+cd ~/multi-agent-shogun
+
+# 2. 初回セットアップ（tmux, Node.js, Claude Code CLI をインストール）
 chmod +x *.sh
+./first_setup.sh
+
+# 3. 起動
+./shutsujin_departure.sh
 ```
 
-### 3. 起動
-
-```bash
-./setup.sh
-```
-
-これだけ！10体のAIエージェント（将軍1 + 家老1 + 足軽8）が自動起動します。
-
-**Windowsユーザー**: `setup.bat` をダブルクリックでもOK。
+これで10体のAIエージェント（将軍1 + 家老1 + 足軽8）が自動起動し、各自の指示書を読み込んで即座に稼働可能になります。
 
 ---
 
@@ -85,16 +95,16 @@ chmod +x *.sh
 
 ## 📋 基本的な使い方
 
-`./setup.sh` 実行後：
+`./shutsujin_departure.sh` 実行後、全エージェントが自動的に指示書を読み込み、即座に稼働可能になります。
 
 1. **将軍にアタッチ**（別ターミナルで）:
    ```bash
    tmux attach-session -t shogun
    ```
 
-2. **命令する**:
+2. **命令する**（将軍は初期化済み、すぐに命令できます）:
    ```
-   汝は将軍なり。instructions/shogun.md を読み、指示に従え。
+   JavaScriptフレームワーク5つを調査して比較表を作成せよ
    ```
 
 3. **ダッシュボードを確認**:
@@ -106,9 +116,9 @@ chmod +x *.sh
 
 ```
 multi-agent-shogun/
-├── setup.sh                  # ワンコマンド起動（shutsujin_departure.shを呼出）
-├── setup.bat                 # Windows用ランチャー
-├── shutsujin_departure.sh    # tmuxセッション構築スクリプト
+├── shutsujin_departure.sh    # メイン起動スクリプト（tmux + Claude Code + 指示書自動読込）
+├── first_setup.sh            # 初回セットアップ（tmux, Node.js, Claude Code CLI インストール）
+├── install.bat               # Windows用インストーラー（first_setup.shを呼出）
 ├── instructions/             # エージェント指示書
 │   ├── shogun.md
 │   ├── karo.md
@@ -141,10 +151,10 @@ language: en   # 日本語 + 英訳併記
 ### コマンドオプション
 
 ```bash
-./setup.sh              # フル起動（推奨）
-./setup.sh -s           # セットアップのみ（Claude手動起動）
-./setup.sh -t           # Windows Terminalタブ展開
-./setup.sh -h           # ヘルプ
+./shutsujin_departure.sh      # フル起動（推奨）
+./shutsujin_departure.sh -s   # セットアップのみ（Claude手動起動）
+./shutsujin_departure.sh -t   # Windows Terminalタブ展開
+./shutsujin_departure.sh -h   # ヘルプ
 ```
 
 ### 便利なエイリアス
@@ -152,7 +162,7 @@ language: en   # 日本語 + 英訳併記
 `~/.bashrc` に追加:
 
 ```bash
-alias shogun='cd /mnt/c/tools/claude-shogun && ./setup.sh'
+alias shogun='cd /mnt/c/tools/multi-agent-shogun && ./shutsujin_departure.sh'
 alias css='tmux attach-session -t shogun'
 alias csm='tmux attach-session -t multiagent'
 ```

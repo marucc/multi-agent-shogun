@@ -287,12 +287,12 @@ skill:
   save_path: "~/.claude/skills/shogun-generated/"
 
   # ローカルスキル保存先（このプロジェクト専用）
-  local_path: "~/claude-shogun/skills/"
+  local_path: "~/multi-agent-shogun/skills/"
 
 # ログ設定
 logging:
   level: info  # debug | info | warn | error
-  path: "~/claude-shogun/logs/"
+  path: "~/multi-agent-shogun/logs/"
 EOF
     log_success "settings.yaml を作成しました"
 else
@@ -418,11 +418,12 @@ echo "  ┌───────────────────────
 echo "  │  📜 次のステップ                                             │"
 echo "  └──────────────────────────────────────────────────────────────┘"
 echo ""
-echo "  1. 出陣（全エージェント起動）:"
-echo "     ./setup.sh"
-echo ""
-echo "  2. または手動でセッションを構築:"
+echo "  出陣（全エージェント起動）:"
 echo "     ./shutsujin_departure.sh"
+echo ""
+echo "  オプション:"
+echo "     ./shutsujin_departure.sh -s   # セットアップのみ（Claude手動起動）"
+echo "     ./shutsujin_departure.sh -t   # Windows Terminalタブ展開"
 echo ""
 echo "  詳細は README.md を参照してください。"
 echo ""

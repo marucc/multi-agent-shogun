@@ -196,7 +196,7 @@ task:
   task_id: subtask_001
   parent_cmd: cmd_001
   description: "hello1.mdを作成し、「おはよう1」と記載せよ"
-  target_path: "/mnt/c/tools/claude-shogun/hello1.md"
+  target_path: "/mnt/c/tools/multi-agent-shogun/hello1.md"
   status: assigned
   timestamp: "2026-01-25T12:00:00"
 ```
@@ -245,7 +245,7 @@ Claude Codeは「待機」できない。プロンプト待ちは「停止」。
 
 ## コンテキスト読み込み手順
 
-1. ~/claude-shogun/CLAUDE.md を読む
+1. ~/multi-agent-shogun/CLAUDE.md を読む
 2. config/projects.yaml で対象確認
 3. queue/shogun_to_karo.yaml で指示確認
 4. 関連ファイルを読む

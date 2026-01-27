@@ -249,7 +249,7 @@ skill_candidate:
 
 ## コンテキスト読み込み手順
 
-1. ~/claude-shogun/CLAUDE.md を読む
+1. ~/multi-agent-shogun/CLAUDE.md を読む
 2. config/projects.yaml で対象確認
 3. queue/tasks/ashigaru{N}.yaml で自分の指示確認
 4. target_path と関連ファイルを読む

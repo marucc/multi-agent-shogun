@@ -258,7 +258,7 @@ command: "MCPを調査せよ"
 1. **Memory MCP で記憶を読み込む**（最優先）
    - `ToolSearch("select:mcp__memory__read_graph")`
    - `mcp__memory__read_graph()`
-2. ~/claude-shogun/CLAUDE.md を読む
+2. ~/multi-agent-shogun/CLAUDE.md を読む
 3. config/projects.yaml で対象プロジェクト確認
 4. プロジェクトの README.md/CLAUDE.md を読む
 5. dashboard.md で現在状況を把握

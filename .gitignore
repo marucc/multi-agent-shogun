@@ -21,6 +21,7 @@ demo_output/
 output/
 queue/research/
 queue/tasks/
+queue/reports/
 
 # Memory MCP data (local to each installation)
 memory/

@@ -61,9 +61,9 @@
 
 📥 **Download this repository**
 
-[Download ZIP](https://github.com/yohey-w/multi-agent-shogun/archive/refs/heads/main.zip) and extract to `C:\tools\claude-shogun`
+[Download ZIP](https://github.com/yohey-w/multi-agent-shogun/archive/refs/heads/main.zip) and extract to `C:\tools\multi-agent-shogun`
 
-*Or use git:* `git clone https://github.com/yohey-w/multi-agent-shogun.git C:\tools\claude-shogun`
+*Or use git:* `git clone https://github.com/yohey-w/multi-agent-shogun.git C:\tools\multi-agent-shogun`
 
 </td>
 </tr>
@@ -100,7 +100,7 @@ That's it! The installer handles everything automatically.
 Open **Ubuntu terminal** (WSL) and run:
 
 ```bash
-cd /mnt/c/tools/claude-shogun
+cd /mnt/c/tools/multi-agent-shogun
 ./shutsujin_departure.sh
 ```
 
@@ -113,8 +113,8 @@ cd /mnt/c/tools/claude-shogun
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yohey-w/multi-agent-shogun.git ~/claude-shogun
-cd ~/claude-shogun
+git clone https://github.com/yohey-w/multi-agent-shogun.git ~/multi-agent-shogun
+cd ~/multi-agent-shogun
 
 # 2. Make scripts executable
 chmod +x *.sh
@@ -126,7 +126,7 @@ chmod +x *.sh
 ### Daily Startup
 
 ```bash
-cd ~/claude-shogun
+cd ~/multi-agent-shogun
 ./shutsujin_departure.sh
 ```
 
@@ -166,7 +166,7 @@ Then restart your computer and run `install.bat` again.
 |--------|---------|-------------|
 | `install.bat` | Windows: First-time setup (runs first_setup.sh via WSL) | First time only |
 | `first_setup.sh` | Installs tmux, Node.js, Claude Code CLI | First time only |
-| `shutsujin_departure.sh` | Creates tmux sessions + starts Claude Code | Every day |
+| `shutsujin_departure.sh` | Creates tmux sessions + starts Claude Code + loads instructions | Every day |
 
 ### What `install.bat` does automatically:
 - ✅ Checks if WSL2 is installed
@@ -177,7 +177,10 @@ Then restart your computer and run `install.bat` again.
 ### What `shutsujin_departure.sh` does:
 - ✅ Creates tmux sessions (shogun + multiagent)
 - ✅ Launches Claude Code on all 10 agents
+- ✅ Automatically loads instruction files for each agent
 - ✅ Resets queue files for a fresh start
+
+**After running, all agents are ready to receive commands immediately!**
 
 </details>
 
@@ -219,7 +222,9 @@ You'll see tmux sessions created:
 
 ### Step 1: Connect to Shogun
 
-Open a new terminal and run:
+After running `shutsujin_departure.sh`, all agents automatically load their instructions and are ready to work.
+
+Open a new terminal and connect to the Shogun:
 
 ```bash
 tmux attach-session -t shogun
@@ -227,7 +232,7 @@ tmux attach-session -t shogun
 
 ### Step 2: Give Your First Order
 
-Type a command like:
+The Shogun is already initialized! Just give your command:
 
 ```
 Investigate the top 5 JavaScript frameworks and create a comparison table.
@@ -492,7 +497,7 @@ multi-agent-shogun/
 │  ┌─────────────────── SETUP SCRIPTS ───────────────────┐
 ├── install.bat               # Windows: First-time setup
 ├── first_setup.sh            # Ubuntu/Mac: First-time setup
-├── shutsujin_departure.sh    # Daily startup
+├── shutsujin_departure.sh    # Daily startup (auto-loads instructions)
 │  └────────────────────────────────────────────────────┘
 │
 ├── instructions/             # Agent instruction files

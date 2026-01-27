@@ -135,7 +135,7 @@ echo   │  Open WSL terminal and run:                              │
 echo   │  WSL ターミナルを開いて実行:                             │
 echo   │                                                          │
 echo   │    cd %WIN_PATH%
-echo   │    ./setup.sh                                            │
+echo   │    ./shutsujin_departure.sh                              │
 echo   │                                                          │
 echo   └──────────────────────────────────────────────────────────┘
 echo.
