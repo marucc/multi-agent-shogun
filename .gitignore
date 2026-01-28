@@ -27,3 +27,4 @@ queue/reports/
 memory/
 queue/*.yaml
 dashboard.md
+config/projects.yaml
