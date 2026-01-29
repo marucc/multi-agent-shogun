@@ -89,7 +89,28 @@ Right-click and select **"Run as administrator"** (required if WSL2 is not yet i
 </td>
 <td>
 
-✅ **Done!** 10 AI agents are now running.
+🐧 **Open Ubuntu and run** (first time only)
+
+```bash
+cd /mnt/c/tools/multi-agent-shogun
+./first_setup.sh
+```
+
+</td>
+</tr>
+<tr>
+<td>
+
+**Step 4**
+
+</td>
+<td>
+
+✅ **Deploy!**
+
+```bash
+./shutsujin_departure.sh
+```
 
 </td>
 </tr>
@@ -103,15 +124,6 @@ Open **Ubuntu terminal** (WSL) and run:
 cd /mnt/c/tools/multi-agent-shogun
 ./shutsujin_departure.sh
 ```
-
-#### 🔐 First-Time Authentication (One Time Only)
-
-1. After running `./shutsujin_departure.sh`, a login screen appears in each pane
-2. **In just ONE pane**, copy the URL and open it in your browser to log in
-3. After authentication, press `Ctrl+C` in other panes and re-run `claude --dangerously-skip-permissions`
-4. Credentials are saved to `~/.claude/` and won't be needed again
-
-> **Note:** You don't need to log in separately on every pane.
 
 ---
 
@@ -153,9 +165,9 @@ cd ~/multi-agent-shogun
 ### Don't have WSL2 yet?
 
 No problem! When you run `install.bat`, it will:
-1. Check if WSL2 is installed
-2. If not, show you exactly how to install it
-3. Guide you through the entire process
+1. Check if WSL2 is installed (auto-install if missing)
+2. Check if Ubuntu is installed (auto-install if missing)
+3. Guide you to the next steps (`first_setup.sh`)
 
 **Quick install command** (run in PowerShell as Administrator):
 ```powershell
@@ -173,20 +185,18 @@ Then restart your computer and run `install.bat` again.
 
 | Script | Purpose | When to Run |
 |--------|---------|-------------|
-| `install.bat` | Windows: First-time setup (runs first_setup.sh via WSL) | First time only |
+| `install.bat` | Windows: WSL2 + Ubuntu setup | First time only |
 | `first_setup.sh` | Installs tmux, Node.js, Claude Code CLI + configures Memory MCP | First time only |
 | `shutsujin_departure.sh` | Creates tmux sessions + starts Claude Code + loads instructions | Every day |
 
 ### What `install.bat` does automatically:
-- ✅ Checks if WSL2 is installed
-- ✅ Opens Ubuntu and runs `first_setup.sh`
-- ✅ Installs tmux, Node.js, and Claude Code CLI
-- ✅ Creates necessary directories
-- ✅ Configures Memory MCP server (for cross-session memory)
+- ✅ Checks if WSL2 is installed (auto-install if missing)
+- ✅ Checks if Ubuntu is installed (auto-install if missing)
+- ✅ Guides you to the next steps (`first_setup.sh`)
 
 ### What `shutsujin_departure.sh` does:
 - ✅ Creates tmux sessions (shogun + multiagent)
-- ✅ Launches Claude Code on all 10 agents
+- ✅ Launches Claude Code on all agents
 - ✅ Automatically loads instruction files for each agent
 - ✅ Resets queue files for a fresh start
 
@@ -215,7 +225,7 @@ If you prefer to install dependencies manually:
 
 ### ✅ What Happens After Setup
 
-After running either option, **10 AI agents** will start automatically:
+After running either option, **AI agents** will start automatically:
 
 | Agent | Role | Quantity |
 |-------|------|----------|
@@ -534,12 +544,15 @@ language: en   # Japanese + English translation
 │                                                                     │
 │  install.bat (Windows)                                              │
 │      │                                                              │
-│      └──▶ first_setup.sh (via WSL)                                  │
-│                │                                                    │
-│                ├── Check/Install tmux                               │
-│                ├── Check/Install Node.js v20+ (via nvm)             │
-│                ├── Check/Install Claude Code CLI                    │
-│                └── Configure Memory MCP server                      │
+│      ├── Check/Install WSL2                                         │
+│      └── Check/Install Ubuntu                                       │
+│                                                                     │
+│  first_setup.sh (run manually in Ubuntu/WSL)                        │
+│      │                                                              │
+│      ├── Check/Install tmux                                         │
+│      ├── Check/Install Node.js v20+ (via nvm)                      │
+│      ├── Check/Install Claude Code CLI                              │
+│      └── Configure Memory MCP server                                │
 │                                                                     │
 ├─────────────────────────────────────────────────────────────────────┤
 │                      DAILY STARTUP (Run Every Day)                  │

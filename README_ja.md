@@ -75,9 +75,9 @@
 </td>
 <td>
 
-🖱️ **`install.bat` をダブルクリック**
+🖱️ **`install.bat` を実行**
 
-これだけ！インストーラーが全て自動で処理します。
+右クリック→「管理者として実行」（WSL2が未インストールの場合）。WSL2 + Ubuntu をセットアップします。
 
 </td>
 </tr>
@@ -89,13 +89,34 @@
 </td>
 <td>
 
-✅ **完了！** 10体のAIエージェントが起動しました。
+🐧 **Ubuntu を開いて以下を実行**（初回のみ）
+
+```bash
+cd /mnt/c/tools/multi-agent-shogun
+./first_setup.sh
+```
+
+</td>
+</tr>
+<tr>
+<td>
+
+**Step 4**
+
+</td>
+<td>
+
+✅ **出陣！**
+
+```bash
+./shutsujin_departure.sh
+```
 
 </td>
 </tr>
 </table>
 
-#### 📅 毎日の起動（初回インストール後）
+#### 📅 毎日の起動（初回セットアップ後）
 
 **Ubuntuターミナル**（WSL）を開いて実行：
 
@@ -144,9 +165,9 @@ cd ~/multi-agent-shogun
 ### WSL2がまだない場合
 
 問題ありません！`install.bat` を実行すると：
-1. WSL2がインストールされているかチェック
-2. なければ、インストール方法を案内
-3. 全プロセスをガイド
+1. WSL2がインストールされているかチェック（なければ自動インストール）
+2. Ubuntuがインストールされているかチェック（なければ自動インストール）
+3. 次のステップ（`first_setup.sh` の実行方法）を案内
 
 **クイックインストールコマンド**（PowerShellを管理者として実行）：
 ```powershell
@@ -164,19 +185,18 @@ wsl --install
 
 | スクリプト | 用途 | 実行タイミング |
 |-----------|------|---------------|
-| `install.bat` | Windows: 初回セットアップ（WSL経由でfirst_setup.shを実行） | 初回のみ |
+| `install.bat` | Windows: WSL2 + Ubuntu のセットアップ | 初回のみ |
 | `first_setup.sh` | tmux、Node.js、Claude Code CLI をインストール | 初回のみ |
 | `shutsujin_departure.sh` | tmuxセッション作成 + Claude Code起動 + 指示書読み込み | 毎日 |
 
 ### `install.bat` が自動で行うこと：
-- ✅ WSL2がインストールされているかチェック
-- ✅ Ubuntuを開いて `first_setup.sh` を実行
-- ✅ tmux、Node.js、Claude Code CLI をインストール
-- ✅ 必要なディレクトリを作成
+- ✅ WSL2がインストールされているかチェック（未インストールなら案内）
+- ✅ Ubuntuがインストールされているかチェック（未インストールなら案内）
+- ✅ 次のステップ（`first_setup.sh` の実行方法）を案内
 
 ### `shutsujin_departure.sh` が行うこと：
 - ✅ tmuxセッションを作成（shogun + multiagent）
-- ✅ 全10エージェントでClaude Codeを起動
+- ✅ 全エージェントでClaude Codeを起動
 - ✅ 各エージェントに指示書を自動読み込み
 - ✅ キューファイルをリセットして新しい状態に
 
@@ -527,11 +547,14 @@ language: en   # 日本語 + 英訳併記
 │                                                                     │
 │  install.bat (Windows)                                              │
 │      │                                                              │
-│      └──▶ first_setup.sh (WSL経由)                                  │
-│                │                                                    │
-│                ├── tmuxのチェック/インストール                        │
-│                ├── Node.js v20+のチェック/インストール (nvm経由)       │
-│                └── Claude Code CLIのチェック/インストール             │
+│      ├── WSL2のチェック/インストール案内                              │
+│      └── Ubuntuのチェック/インストール案内                            │
+│                                                                     │
+│  first_setup.sh (Ubuntu/WSLで手動実行)                               │
+│      │                                                              │
+│      ├── tmuxのチェック/インストール                                  │
+│      ├── Node.js v20+のチェック/インストール (nvm経由)                │
+│      └── Claude Code CLIのチェック/インストール                      │
 │                                                                     │
 ├─────────────────────────────────────────────────────────────────────┤
 │                      毎日の起動（毎日実行）                           │
@@ -607,13 +630,14 @@ tmux kill-session -t multiagent
 <details>
 <summary><b>便利なエイリアス</b>（クリックで展開）</summary>
 
-`~/.bashrc` に追加：
+`first_setup.sh` を実行すると、以下のエイリアスが `~/.bashrc` に自動追加されます：
 
 ```bash
-alias shogun='cd /mnt/c/tools/multi-agent-shogun && ./shutsujin_departure.sh'
-alias css='tmux attach-session -t shogun'
-alias csm='tmux attach-session -t multiagent'
+alias css='cd /mnt/c/tools/multi-agent-shogun && ./shutsujin_departure.sh'  # セットアップ+出陣
+alias csm='cd /mnt/c/tools/multi-agent-shogun'                              # ディレクトリ移動のみ
 ```
+
+※ エイリアスを反映するには `source ~/.bashrc` を実行するか、PowerShellで `wsl --shutdown` してからターミナルを開き直してください。
 
 </details>
 
