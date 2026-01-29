@@ -75,9 +75,9 @@
 </td>
 <td>
 
-🖱️ **Double-click `install.bat`**
+🖱️ **Run `install.bat`**
 
-That's it! The installer handles everything automatically.
+Right-click and select **"Run as administrator"** (required if WSL2 is not yet installed). The installer will guide you through each step — you may need to restart your PC or set up Ubuntu before re-running.
 
 </td>
 </tr>
@@ -174,7 +174,7 @@ Then restart your computer and run `install.bat` again.
 | Script | Purpose | When to Run |
 |--------|---------|-------------|
 | `install.bat` | Windows: First-time setup (runs first_setup.sh via WSL) | First time only |
-| `first_setup.sh` | Installs tmux, Node.js, Claude Code CLI | First time only |
+| `first_setup.sh` | Installs tmux, Node.js, Claude Code CLI + configures Memory MCP | First time only |
 | `shutsujin_departure.sh` | Creates tmux sessions + starts Claude Code + loads instructions | Every day |
 
 ### What `install.bat` does automatically:
@@ -182,6 +182,7 @@ Then restart your computer and run `install.bat` again.
 - ✅ Opens Ubuntu and runs `first_setup.sh`
 - ✅ Installs tmux, Node.js, and Claude Code CLI
 - ✅ Creates necessary directories
+- ✅ Configures Memory MCP server (for cross-session memory)
 
 ### What `shutsujin_departure.sh` does:
 - ✅ Creates tmux sessions (shogun + multiagent)
@@ -459,6 +460,8 @@ claude mcp add github -e GITHUB_PERSONAL_ACCESS_TOKEN=your_pat_here -- npx -y @m
 claude mcp add sequential-thinking -- npx -y @modelcontextprotocol/server-sequential-thinking
 
 # 5. Memory - Long-term memory across sessions (Recommended!)
+# ✅ Automatically configured by first_setup.sh
+# To reconfigure manually:
 claude mcp add memory -e MEMORY_FILE_PATH="$PWD/memory/shogun_memory.jsonl" -- npx -y @modelcontextprotocol/server-memory
 ```
 
@@ -535,7 +538,8 @@ language: en   # Japanese + English translation
 │                │                                                    │
 │                ├── Check/Install tmux                               │
 │                ├── Check/Install Node.js v20+ (via nvm)             │
-│                └── Check/Install Claude Code CLI                    │
+│                ├── Check/Install Claude Code CLI                    │
+│                └── Configure Memory MCP server                      │
 │                                                                     │
 ├─────────────────────────────────────────────────────────────────────┤
 │                      DAILY STARTUP (Run Every Day)                  │

@@ -78,7 +78,7 @@ description: {いつこのスキルを使うか、具体的なユースケース
    - エッジケースの対処
 
 5. 保存
-   - パス: ~/.claude/skills/shogun-generated/{skill-name}/
+   - パス: ~/.claude/skills/shogun-{skill-name}/
    - 既存スキルと名前が被らないか確認
 
 ## 使用フロー

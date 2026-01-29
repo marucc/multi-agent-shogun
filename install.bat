@@ -5,31 +5,31 @@ title multi-agent-shogun Installer
 echo.
 echo   +============================================================+
 echo   |  [SHOGUN] multi-agent-shogun - Auto Installer              |
-echo   |           ‘S©“®ƒZƒbƒgƒAƒbƒv                               |
+echo   |           ï¿½Sï¿½ï¿½ï¿½ï¿½ï¿½Zï¿½bï¿½gï¿½Aï¿½bï¿½v                               |
 echo   +============================================================+
 echo.
 
 REM ===== Step 1: Check/Install WSL2 =====
 echo   [1/4] Checking WSL2...
-echo         WSL2 Šm”F’†...
+echo         WSL2 ï¿½mï¿½Fï¿½ï¿½...
 
 wsl.exe --version >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo   WSL2 not found. Installing automatically...
-    echo   WSL2 ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñB©“®ƒCƒ“ƒXƒg[ƒ‹’†...
+    echo   WSL2 ï¿½ï¿½ï¿½ï¿½ï¿½Â‚ï¿½ï¿½ï¿½Ü‚ï¿½ï¿½ï¿½Bï¿½ï¿½ï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½Xï¿½gï¿½[ï¿½ï¿½ï¿½ï¿½...
     echo.
 
-    REM ŠÇ—ÒŒ ŒÀ‚ÅÀs‚³‚ê‚Ä‚¢‚é‚©Šm”F
+    REM ï¿½Ç—ï¿½ï¿½ÒŒï¿½ï¿½ï¿½ï¿½Åï¿½ï¿½sï¿½ï¿½ï¿½ï¿½Ä‚ï¿½ï¿½é‚©ï¿½mï¿½F
     net session >nul 2>&1
     if %ERRORLEVEL% NEQ 0 (
         echo   +============================================================+
         echo   |  [WARN] Administrator privileges required!                 |
-        echo   |         ŠÇ—ÒŒ ŒÀ‚ª•K—v‚Å‚·                               |
+        echo   |         ï¿½Ç—ï¿½ï¿½ÒŒï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Kï¿½vï¿½Å‚ï¿½                               |
         echo   +============================================================+
         echo.
         echo   Right-click install.bat and select "Run as administrator"
-        echo   install.bat ‚ğ‰EƒNƒŠƒbƒN¨uŠÇ—Ò‚Æ‚µ‚ÄÀsv
+        echo   install.bat ï¿½ï¿½ï¿½Eï¿½Nï¿½ï¿½ï¿½bï¿½Nï¿½ï¿½ï¿½uï¿½Ç—ï¿½ï¿½Ò‚Æ‚ï¿½ï¿½Äï¿½ï¿½sï¿½v
         echo.
         pause
         exit /b 1
@@ -40,12 +40,12 @@ if %ERRORLEVEL% NEQ 0 (
 
     echo.
     echo   +============================================================+
-    echo   |  [...] Restart required!                                   |
-    echo   |        Ä‹N“®‚ª•K—v‚Å‚·                                    |
+    echo   |  [!] Restart required!                                     |
+    echo   |      ï¿½Ä‹Nï¿½ï¿½ï¿½ï¿½ï¿½Kï¿½vï¿½Å‚ï¿½                                      |
     echo   +============================================================+
     echo.
     echo   After restart, run install.bat again.
-    echo   Ä‹N“®ŒãA‚à‚¤ˆê“x install.bat ‚ğÀs‚µ‚Ä‚­‚¾‚³‚¢B
+    echo   ï¿½Ä‹Nï¿½ï¿½ï¿½ï¿½Aï¿½ï¿½ï¿½ï¿½ï¿½ï¿½x install.bat ï¿½ï¿½ï¿½ï¿½ï¿½sï¿½ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½B
     echo.
     pause
     exit /b 0
@@ -55,63 +55,99 @@ echo.
 
 REM ===== Step 2: Check/Install Ubuntu =====
 echo   [2/4] Checking Ubuntu...
-echo         Ubuntu Šm”F’†...
+echo         Ubuntu ï¿½mï¿½Fï¿½ï¿½...
 
-wsl.exe -l -q 2>nul | findstr /i "ubuntu" >nul
-if %ERRORLEVEL% NEQ 0 (
-    echo.
-    echo   Ubuntu not found. Installing automatically...
-    echo   Ubuntu ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñB©“®ƒCƒ“ƒXƒg[ƒ‹’†...
-    echo.
+REM Ubuntu check: use -d Ubuntu directly (avoids UTF-16LE pipe issue with findstr)
+wsl.exe -d Ubuntu -- echo test >nul 2>&1
+if %ERRORLEVEL% EQU 0 goto :ubuntu_ok
 
-    wsl --install -d Ubuntu --no-launch
+REM echo test failed - check if Ubuntu distro exists but needs initial setup
+wsl.exe -d Ubuntu -- exit 0 >nul 2>&1
+if %ERRORLEVEL% EQU 0 goto :ubuntu_needs_setup
 
-    echo.
-    echo   +============================================================+
-    echo   |  [NOTE] Ubuntu initial setup required!                     |
-    echo   |         Ubuntu ‚Ì‰Šúİ’è‚ª•K—v‚Å‚·                        |
-    echo   +============================================================+
-    echo.
-    echo   1. Open Ubuntu from Start Menu
-    echo      ƒXƒ^[ƒgƒƒjƒ…[‚©‚ç Ubuntu ‚ğŠJ‚­
-    echo.
-    echo   2. Set your username and password
-    echo      ƒ†[ƒU[–¼‚ÆƒpƒXƒ[ƒh‚ğİ’è
-    echo.
-    echo   3. Run install.bat again
-    echo      ‚à‚¤ˆê“x install.bat ‚ğÀs
-    echo.
-    pause
-    exit /b 0
-)
+REM Ubuntu not installed
+echo.
+echo   Ubuntu not found. Installing automatically...
+echo   Ubuntu ï¿½ï¿½ï¿½ï¿½ï¿½Â‚ï¿½ï¿½ï¿½Ü‚ï¿½ï¿½ï¿½Bï¿½ï¿½ï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½Xï¿½gï¿½[ï¿½ï¿½ï¿½ï¿½...
+echo.
+
+wsl --install -d Ubuntu --no-launch
+
+echo.
+echo   +============================================================+
+echo   |  [NOTE] Ubuntu initial setup required!                     |
+echo   |         Ubuntu ï¿½Ìï¿½ï¿½ï¿½ï¿½İ’è‚ªï¿½Kï¿½vï¿½Å‚ï¿½                        |
+echo   +============================================================+
+echo.
+echo   1. Open Ubuntu from Start Menu
+echo      ï¿½Xï¿½^ï¿½[ï¿½gï¿½ï¿½ï¿½jï¿½ï¿½ï¿½[ï¿½ï¿½ï¿½ï¿½ Ubuntu ï¿½ï¿½ï¿½Jï¿½ï¿½
+echo.
+echo   2. Set your username and password
+echo      ï¿½ï¿½ï¿½[ï¿½Uï¿½[ï¿½ï¿½ï¿½Æƒpï¿½Xï¿½ï¿½ï¿½[ï¿½hï¿½ï¿½İ’ï¿½
+echo.
+echo   3. Run install.bat again
+echo      ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½x install.bat ï¿½ï¿½ï¿½ï¿½ï¿½s
+echo.
+pause
+exit /b 0
+
+:ubuntu_needs_setup
+REM Ubuntu exists but initial setup not completed
+echo.
+echo   +============================================================+
+echo   |  [WARN] Ubuntu initial setup required!                     |
+echo   |         Ubuntu ï¿½Ìï¿½ï¿½ï¿½ï¿½İ’è‚ªï¿½Kï¿½vï¿½Å‚ï¿½                        |
+echo   +============================================================+
+echo.
+echo   1. Open Ubuntu from Start Menu
+echo      ï¿½Xï¿½^ï¿½[ï¿½gï¿½ï¿½ï¿½jï¿½ï¿½ï¿½[ï¿½ÅuUbuntuï¿½vï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÄŠJï¿½ï¿½
+echo.
+echo   2. Set your username and password
+echo      ï¿½ï¿½ï¿½[ï¿½Uï¿½[ï¿½ï¿½ï¿½Æƒpï¿½Xï¿½ï¿½ï¿½[ï¿½hï¿½ï¿½İ’ï¿½
+echo.
+echo   3. Run install.bat again
+echo      ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½x install.bat ï¿½ï¿½ï¿½ï¿½ï¿½s
+echo.
+pause
+exit /b 1
+
+:ubuntu_ok
 echo   [OK] Ubuntu OK
 echo.
 
 REM ===== Step 3: Get script path for WSL =====
 echo   [3/4] Preparing WSL path...
-echo         WSL ƒpƒX€”õ’†...
+echo         WSL ï¿½pï¿½Xï¿½ï¿½ï¿½ï¿½ï¿½ï¿½...
 
-REM Œ»İ‚ÌƒfƒBƒŒƒNƒgƒŠ‚ğWSLƒpƒX‚É•ÏŠ·
-set "WIN_PATH=%~dp0"
-set "WIN_PATH=%WIN_PATH:\=/%"
-set "WIN_PATH=%WIN_PATH:C:=/mnt/c%"
-set "WIN_PATH=%WIN_PATH:D:=/mnt/d%"
-set "WIN_PATH=%WIN_PATH:E:=/mnt/e%"
-REM ––”ö‚ÌƒXƒ‰ƒbƒVƒ…‚ğíœ
-if "%WIN_PATH:~-1%"=="/" set "WIN_PATH=%WIN_PATH:~0,-1%"
+REM wslpath ï¿½ï¿½ï¿½gï¿½ï¿½ï¿½Äï¿½ï¿½mï¿½Éƒpï¿½Xï¿½ÏŠï¿½
+set "WSL_PATH="
+for /f "usebackq tokens=*" %%a in (`wsl.exe -d Ubuntu wslpath -u "%~dp0" 2^>nul`) do set "WSL_PATH=%%a"
 
-echo   [OK] Path: %WIN_PATH%
+REM wslpath ï¿½ï¿½ï¿½ï¿½ï¿½sï¿½ï¿½ï¿½ï¿½ï¿½ê‡ï¿½Ìƒtï¿½Hï¿½[ï¿½ï¿½ï¿½oï¿½bï¿½N
+if defined WSL_PATH goto :wslpath_done
+set "WSL_PATH=%~dp0"
+set "WSL_PATH=%WSL_PATH:\=/%"
+REM Drive letter to WSL mount path (A-Z, case-insensitive)
+for %%d in (a b c d e f g h i j k l m n o p q r s t u v w x y z) do (
+    call set "WSL_PATH=%%WSL_PATH:%%d:=/mnt/%%d%%"
+)
+:wslpath_done
+
+REM ï¿½ï¿½ï¿½ï¿½ï¿½ÌƒXï¿½ï¿½ï¿½bï¿½Vï¿½ï¿½ï¿½ï¿½ï¿½íœ
+if "%WSL_PATH:~-1%"=="/" set "WSL_PATH=%WSL_PATH:~0,-1%"
+
+echo   [OK] Path: %WSL_PATH%
 echo.
 
 REM ===== Step 4: Run first_setup.sh =====
 echo   [4/4] Running first_setup.sh...
-echo         first_setup.sh Às’†...
+echo         first_setup.sh ï¿½ï¿½ï¿½sï¿½ï¿½...
 echo.
 
 REM Set Ubuntu as default WSL distribution
 wsl --set-default Ubuntu
 
-wsl.exe -e bash -c "cd \"%WIN_PATH%\" && chmod +x *.sh && ./first_setup.sh"
+wsl.exe -d Ubuntu -- bash -c "cd \"%WSL_PATH%\" && chmod +x *.sh && ./first_setup.sh"
 
 if %ERRORLEVEL% NEQ 0 (
     echo.
@@ -126,18 +162,18 @@ if %ERRORLEVEL% NEQ 0 (
 echo.
 echo   +============================================================+
 echo   |  [OK] Installation completed!                              |
-echo   |       ƒCƒ“ƒXƒg[ƒ‹Š®—¹I                                   |
+echo   |       ï¿½Cï¿½ï¿½ï¿½Xï¿½gï¿½[ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½!                                    |
 echo   +============================================================+
 echo.
 echo   +------------------------------------------------------------+
 echo   |  [START] NEXT: Start the system                            |
-echo   |          Ÿ‚ÌƒXƒeƒbƒv: ƒVƒXƒeƒ€‹N“®                        |
+echo   |          ï¿½ï¿½ï¿½ÌƒXï¿½eï¿½bï¿½v: ï¿½Vï¿½Xï¿½eï¿½ï¿½ï¿½Nï¿½ï¿½                        |
 echo   +------------------------------------------------------------+
 echo   |                                                            |
 echo   |  Open WSL terminal and run:                                |
-echo   |  WSL ƒ^[ƒ~ƒiƒ‹‚ğŠJ‚¢‚ÄÀs:                               |
+echo   |  WSL ï¿½^ï¿½[ï¿½~ï¿½iï¿½ï¿½ï¿½ï¿½ï¿½Jï¿½ï¿½ï¿½Äï¿½ï¿½s:                               |
 echo   |                                                            |
-echo   |    cd %WIN_PATH%
+echo   |    cd "%WSL_PATH%"
 echo   |    ./shutsujin_departure.sh                                |
 echo   |                                                            |
 echo   +------------------------------------------------------------+
