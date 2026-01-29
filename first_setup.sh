@@ -386,6 +386,27 @@ else
     log_info "config/projects.yaml は既に存在します"
 fi
 
+# memory/global_context.md（システム全体のコンテキスト）
+if [ ! -f "$SCRIPT_DIR/memory/global_context.md" ]; then
+    log_info "memory/global_context.md を作成中..."
+    cat > "$SCRIPT_DIR/memory/global_context.md" << 'EOF'
+# グローバルコンテキスト
+最終更新: (未設定)
+
+## システム方針
+- (殿の好み・方針をここに記載)
+
+## プロジェクト横断の決定事項
+- (複数プロジェクトに影響する決定をここに記載)
+
+## 注意事項
+- (全エージェントが知るべき注意点をここに記載)
+EOF
+    log_success "global_context.md を作成しました"
+else
+    log_info "memory/global_context.md は既に存在します"
+fi
+
 RESULTS+=("設定ファイル: OK")
 
 # ============================================================
