@@ -311,7 +311,7 @@ Session 2: AI reads memory at startup
 
 ### 📡 4. Event-Driven (No Polling)
 
-Agents communicate via YAML files and wake each other with tmux send-keys.
+Agents communicate via YAML files and wake each other with notify.sh.
 **No API calls are wasted on polling loops.**
 
 ### 📸 5. Screenshot Support
@@ -399,10 +399,10 @@ The Shogun → Karo → Ashigaru hierarchy exists for:
 2. **Parallel Execution**: Karo distributes to multiple Ashigaru simultaneously
 3. **Separation of Concerns**: Shogun decides "what", Karo decides "who"
 
-### Why YAML + send-keys?
+### Why YAML + notify.sh?
 
 - **YAML files**: Structured communication that survives agent restarts
-- **send-keys**: Event-driven wakeups (no polling = no wasted API calls)
+- **notify.sh**: Event-driven wakeups (no polling = no wasted API calls)
 - **No direct calls**: Agents can't interrupt each other or your input
 
 ### Why Only Karo Updates Dashboard?
@@ -596,8 +596,8 @@ tmux attach-session -t shogun     # Connect to give commands
 ./shutsujin_departure.sh -s       # Create sessions only
 
 # Manually start Claude Code on specific agents
-tmux send-keys -t shogun:0 'claude --dangerously-skip-permissions' Enter
-tmux send-keys -t multiagent:0.0 'claude --dangerously-skip-permissions' Enter
+./scripts/notify.sh shogun:0 'claude --dangerously-skip-permissions'
+./scripts/notify.sh multiagent:0.0 'claude --dangerously-skip-permissions'
 ```
 
 **Restart After Crash:**

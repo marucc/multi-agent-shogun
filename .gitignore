@@ -31,3 +31,7 @@ config/projects.yaml
 status/
 config/settings.yaml
 logs/
+
+# Watchdog runtime files
+.last_dashboard_check
+.limit_reset_times

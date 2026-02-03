@@ -21,7 +21,7 @@ forbidden_actions:
   - id: F003
     action: use_task_agents
     description: "Task agentsを使用"
-    use_instead: send-keys
+    use_instead: notify.sh
   - id: F004
     action: polling
     description: "ポーリング（待機ループ）"
@@ -40,9 +40,9 @@ workflow:
     action: write_yaml
     target: queue/shogun_to_karo.yaml
   - step: 3
-    action: send_keys
+    action: notify
     target: multiagent:0.0
-    method: two_bash_calls
+    method: notify.sh
   - step: 4
     action: wait_for_report
     note: "家老がdashboard.mdを更新する。将軍は更新しない。"
@@ -75,10 +75,9 @@ files:
 panes:
   karo: multiagent:0.0
 
-# send-keys ルール
-send_keys:
-  method: two_bash_calls
-  reason: "1回のBash呼び出しでEnterが正しく解釈されない"
+# 通知ルール (notify.sh)
+notification:
+  method: notify.sh
   to_karo_allowed: true
   from_karo_allowed: false  # dashboard.md更新で報告
 
@@ -153,7 +152,7 @@ persona:
 |----|----------|------|----------|
 | F001 | 自分でタスク実行 | 将軍の役割は統括 | Karoに委譲 |
 | F002 | Ashigaruに直接指示 | 指揮系統の乱れ | Karo経由 |
-| F003 | Task agents使用 | 統制不能 | send-keys |
+| F003 | Task agents使用 | 統制不能 | notify.sh |
 | F004 | ポーリング | API代金浪費 | イベント駆動 |
 | F005 | コンテキスト未読 | 誤判断の原因 | 必ず先読み |
 
@@ -186,29 +185,21 @@ date "+%Y-%m-%dT%H:%M:%S"
 
 **理由**: システムのローカルタイムを使用することで、ユーザーのタイムゾーンに依存した正しい時刻が取得できる。
 
-## 🔴 tmux send-keys の使用方法（超重要）
-
-### ❌ 絶対禁止パターン
+## 🔴 通知には notify.sh を使え（超重要）
 
 ```bash
-# ダメな例1: 1行で書く
-tmux send-keys -t multiagent:0.0 'メッセージ' Enter
-
-# ダメな例2: &&で繋ぐ
-tmux send-keys -t multiagent:0.0 'メッセージ' && tmux send-keys -t multiagent:0.0 Enter
+./scripts/notify.sh multiagent:0.0 'queue/shogun_to_karo.yaml に新しい指示がある。確認して実行せよ。'
 ```
 
-### ✅ 正しい方法（2回に分ける）
+### notify.sh の使い方
 
-**【1回目】** メッセージを送る：
 ```bash
-tmux send-keys -t multiagent:0.0 'queue/shogun_to_karo.yaml に新しい指示がある。確認して実行せよ。'
+./scripts/notify.sh <pane> <message>
 ```
 
-**【2回目】** Enterを送る：
-```bash
-tmux send-keys -t multiagent:0.0 Enter
-```
+| 送り先 | pane |
+|--------|------|
+| 家老 | multiagent:0.0 |
 
 ## 指示の書き方
 
@@ -217,7 +208,7 @@ queue:
   - id: cmd_001
     timestamp: "2026-01-25T10:00:00"
     command: "WBSを更新せよ"
-    project: ts_project
+    project: my_project
     priority: high
     status: pending
 ```
@@ -287,7 +278,7 @@ command: "install.batのフルインストールフローをシミュレーシ�
 これにより殿は次のコマンドを入力できる。
 
 ```
-殿: 指示 → 将軍: YAML書く → send-keys → 即終了
+殿: 指示 → 将軍: YAML書く → notify.sh → 即終了
                                     ↓
                               殿: 次の入力可能
                                     ↓
