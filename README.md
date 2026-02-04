@@ -182,6 +182,41 @@ alias csm='tmux attach-session -t multiagent'
 
 </details>
 
+### 📱 Mobile Access (Command from anywhere)
+
+Control your AI army from your phone — bed, café, or bathroom.
+
+**Requirements:**
+- [Tailscale](https://tailscale.com/) (free) — creates a secure tunnel to your WSL
+- [Termux](https://termux.dev/) (free) — terminal app for Android
+- SSH — already installed
+
+**Setup:**
+
+1. Install Tailscale on both WSL and your phone
+2. In WSL (auth key method — browser not needed):
+   ```bash
+   curl -fsSL https://tailscale.com/install.sh | sh
+   sudo tailscaled &
+   sudo tailscale up --authkey tskey-auth-XXXXXXXXXXXX
+   sudo service ssh start
+   ```
+3. In Termux on your phone:
+   ```sh
+   pkg update && pkg install openssh
+   ssh youruser@your-tailscale-ip
+   css    # Connect to Shogun
+   ```
+4. Open a new Termux window (+ button) for workers:
+   ```sh
+   ssh youruser@your-tailscale-ip
+   csm    # See all 9 panes
+   ```
+
+**Disconnect:** Just swipe the Termux window closed. tmux sessions survive — agents keep working.
+
+**Voice input:** Use your phone's voice keyboard to speak commands. The Shogun understands natural language, so typos from speech-to-text don't matter.
+
 ---
 
 ## How It Works

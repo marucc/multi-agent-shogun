@@ -125,6 +125,44 @@ cd /mnt/c/tools/multi-agent-shogun
 ./shutsujin_departure.sh
 ```
 
+### 📱 スマホからアクセス（どこからでも指揮）
+
+ベッドから、カフェから、トイレから。スマホでAI部下を操作できる。
+
+**必要なもの（全部無料）：**
+
+| 名前 | 一言で言うと | 役割 |
+|------|------------|------|
+| [Tailscale](https://tailscale.com/) | 外から自宅に届く道 | カフェからでもトイレからでも自宅PCに繋がる |
+| SSH | その道を歩く足 | Tailscaleの道を通って自宅PCにログインする |
+| [Termux](https://termux.dev/) | スマホの黒い画面 | SSHを使うために必要。スマホに入れるだけ |
+
+**セットアップ：**
+
+1. WSLとスマホの両方にTailscaleをインストール
+2. WSL側（Auth key方式 — ブラウザ不要）：
+   ```bash
+   curl -fsSL https://tailscale.com/install.sh | sh
+   sudo tailscaled &
+   sudo tailscale up --authkey tskey-auth-XXXXXXXXXXXX
+   sudo service ssh start
+   ```
+3. スマホのTermuxから：
+   ```sh
+   pkg update && pkg install openssh
+   ssh あなたのユーザー名@あなたのTailscale IP
+   css    # 将軍に繋がる
+   ```
+4. ＋ボタンで新しいウィンドウを開いて、部下の様子も見る：
+   ```sh
+   ssh あなたのユーザー名@あなたのTailscale IP
+   csm    # 家老+足軽の9ペインが広がる
+   ```
+
+**切り方：** Termuxのウィンドウをスワイプで閉じるだけ。tmuxセッションは生き残る。AI部下は黙々と作業を続けている。
+
+**音声入力：** スマホの音声入力で喋れば、将軍が自然言語を理解して全軍に指示を出す。音声認識の誤字も文脈で解釈してくれる。
+
 ---
 
 <details>
