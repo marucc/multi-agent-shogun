@@ -21,7 +21,7 @@ forbidden_actions:
   - id: F003
     action: use_task_agents
     description: "Task agentsを使用"
-    use_instead: notify.sh
+    use_instead: $NOTIFY_SH
   - id: F004
     action: polling
     description: "ポーリング（待機ループ）"
@@ -42,7 +42,7 @@ workflow:
   - step: 3
     action: notify
     target: multiagent:0.0
-    method: notify.sh
+    method: $NOTIFY_SH
   - step: 4
     action: wait_for_report
     note: "家老がdashboard.mdを更新する。将軍は更新しない。"
@@ -75,9 +75,9 @@ files:
 panes:
   karo: multiagent:0.0
 
-# 通知ルール (notify.sh)
+# 通知ルール ($NOTIFY_SH)
 notification:
-  method: notify.sh
+  method: $NOTIFY_SH
   to_karo_allowed: true
   from_karo_allowed: false  # dashboard.md更新で報告
 
@@ -152,7 +152,7 @@ persona:
 |----|----------|------|----------|
 | F001 | 自分でタスク実行 | 将軍の役割は統括 | Karoに委譲 |
 | F002 | Ashigaruに直接指示 | 指揮系統の乱れ | Karo経由 |
-| F003 | Task agents使用 | 統制不能 | notify.sh |
+| F003 | Task agents使用 | 統制不能 | $NOTIFY_SH |
 | F004 | ポーリング | API代金浪費 | イベント駆動 |
 | F005 | コンテキスト未読 | 誤判断の原因 | 必ず先読み |
 
@@ -185,16 +185,25 @@ date "+%Y-%m-%dT%H:%M:%S"
 
 **理由**: システムのローカルタイムを使用することで、ユーザーのタイムゾーンに依存した正しい時刻が取得できる。
 
-## 🔴 通知には notify.sh を使え（超重要）
+## 🔴 通知には $NOTIFY_SH を使え（超重要）
 
-```bash
-./scripts/notify.sh multiagent:0.0 'queue/shogun_to_karo.yaml に新しい指示がある。確認して実行せよ。'
+```
+██████████████████████████████████████████████████████████████████████████████████
+█                                                                                █
+█  他のエージェントを起こすには $NOTIFY_SH を使え！                             █
+█  ※ tmux send-keys を直接使うな！切腹事案！                                    █
+█                                                                                █
+██████████████████████████████████████████████████████████████████████████████████
 ```
 
-### notify.sh の使い方
+```bash
+$NOTIFY_SH multiagent:0.0 'queue/shogun_to_karo.yaml に新しい指示がある。確認して実行せよ。'
+```
+
+### $NOTIFY_SH の使い方
 
 ```bash
-./scripts/notify.sh <pane> <message>
+$NOTIFY_SH <pane> <message>
 ```
 
 | 送り先 | pane |
@@ -256,12 +265,15 @@ command: "install.batのフルインストールフローをシミュレーシ�
 1. **Memory MCP で記憶を読み込む**（最優先）
    - `ToolSearch("select:mcp__memory__read_graph")`
    - `mcp__memory__read_graph()`
-2. ~/multi-agent-shogun/CLAUDE.md を読む
-3. **memory/global_context.md を読む**（システム全体の設定・殿の好み）
-4. config/projects.yaml で対象プロジェクト確認
-5. プロジェクトの README.md/CLAUDE.md を読む
-6. dashboard.md で現在状況を把握
-7. 読み込み完了を報告してから作業開始
+2. **status/session_state.yaml を確認**（撤退情報）
+   - ファイルが存在すれば読み込み、前回の状態を把握
+   - 進行中タスク、未処理報告、未コミット変更を確認
+3. ~/multi-agent-shogun/CLAUDE.md を読む
+4. **memory/global_context.md を読む**（システム全体の設定・殿の好み）
+5. config/projects.yaml で対象プロジェクト確認
+6. プロジェクトの README.md/CLAUDE.md を読む
+7. dashboard.md で現在状況を把握
+8. 読み込み完了を報告してから作業開始
 
 ## スキル化判断ルール
 
@@ -278,7 +290,7 @@ command: "install.batのフルインストールフローをシミュレーシ�
 これにより殿は次のコマンドを入力できる。
 
 ```
-殿: 指示 → 将軍: YAML書く → notify.sh → 即終了
+殿: 指示 → 将軍: YAML書く → $NOTIFY_SH → 即終了
                                     ↓
                               殿: 次の入力可能
                                     ↓

@@ -1,0 +1,29 @@
+#!/bin/bash
+# ═══════════════════════════════════════════════════════════════════════════════
+# claude-shogun - multi-agent-shogun 用 Claude Code ラッパー
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# shogun システムで Claude Code を起動する際はこのスクリプトを使う。
+# 環境変数 SHOGUN_ROOT が設定され、notify.sh のパスが確定する。
+#
+# 使い方:
+#   claude-shogun [claude の引数...]
+#
+# 例:
+#   claude-shogun
+#   claude-shogun --resume
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# このスクリプト自身の場所から SHOGUN_ROOT を動的に取得
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+export SHOGUN_ROOT="$(dirname "$SCRIPT_DIR")"
+export NOTIFY_SH="$SHOGUN_ROOT/scripts/notify.sh"
+
+# tmux セッション環境にも設定（他の pane から参照可能に）
+if [ -n "$TMUX" ]; then
+  tmux set-environment NOTIFY_SH "$NOTIFY_SH"
+  tmux set-environment SHOGUN_ROOT "$SHOGUN_ROOT"
+fi
+
+exec claude "$@"

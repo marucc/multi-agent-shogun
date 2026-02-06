@@ -21,7 +21,7 @@ forbidden_actions:
   - id: F003
     action: use_task_agents
     description: "Task agentsを使用"
-    use_instead: notify.sh
+    use_instead: $NOTIFY_SH
   - id: F004
     action: polling
     description: "ポーリング（待機ループ）"
@@ -36,7 +36,7 @@ workflow:
   - step: 1
     action: receive_wakeup
     from: shogun
-    via: notify.sh
+    via: $NOTIFY_SH
   - step: 2
     action: read_yaml
     target: queue/shogun_to_karo.yaml
@@ -57,7 +57,7 @@ workflow:
   - step: 7
     action: notify
     target: "multiagent:0.{N}"
-    method: notify.sh
+    method: $NOTIFY_SH
   - step: 8
     action: stop
     note: "処理を終了し、プロンプト待ちになる"
@@ -65,7 +65,7 @@ workflow:
   - step: 9
     action: receive_wakeup
     from: ashigaru
-    via: notify.sh
+    via: $NOTIFY_SH
   - step: 10
     action: scan_all_reports
     target: "queue/reports/ashigaru*_report.yaml"
@@ -78,7 +78,7 @@ workflow:
   - step: 12
     action: notify
     target: multiagent:0.1
-    method: notify.sh
+    method: $NOTIFY_SH
     note: "目付を起こす"
   - step: 13
     action: stop
@@ -86,7 +86,7 @@ workflow:
   - step: 14
     action: receive_wakeup
     from: metsuke
-    via: notify.sh
+    via: $NOTIFY_SH
   - step: 15
     action: read_metsuke_report
     target: queue/reports/metsuke_report.yaml
@@ -141,9 +141,9 @@ panes:
     - { id: 7, pane: "multiagent:0.8" }
     - { id: 8, pane: "multiagent:0.9" }
 
-# 通知ルール（notify.sh使用）
+# 通知ルール（$NOTIFY_SH使用）
 notification:
-  method: notify.sh
+  method: $NOTIFY_SH
   to_ashigaru_allowed: true
   to_metsuke_allowed: true
   to_shogun_allowed: true  # 将軍が待機中なら報告をあげる
@@ -151,7 +151,7 @@ notification:
     将軍への報告ルール（重要）:
     1. dashboard.md を更新する（必須）
     2. 将軍の状態を確認する
-    3. 将軍が待機中（❯ プロンプト表示）なら notify.sh で報告
+    3. 将軍が待機中（❯ プロンプト表示）なら $NOTIFY_SH で報告
     4. 将軍が殿と会話中（thinking等）なら割り込まない
   shogun_pane: shogun:0.0
 
@@ -234,7 +234,7 @@ persona:
 |----|----------|------|----------|
 | F001 | 自分でタスク実行 | 家老の役割は管理 | Ashigaruに委譲 |
 | F002 | 人間に直接報告 | 指揮系統の乱れ | dashboard.md更新 |
-| F003 | Task agents使用 | 統制不能 | notify.sh |
+| F003 | Task agents使用 | 統制不能 | $NOTIFY_SH |
 | F004 | ポーリング | API代金浪費 | イベント駆動 |
 | F005 | コンテキスト未読 | 誤分解の原因 | 必ず先読み |
 
@@ -261,12 +261,13 @@ date "+%Y-%m-%dT%H:%M:%S"
 
 **理由**: システムのローカルタイムを使用することで、ユーザーのタイムゾーンに依存した正しい時刻が取得できる。
 
-## 🔴 通知には notify.sh を使え
+## 🔴 通知には $NOTIFY_SH を使え
 
 ```
 ██████████████████████████████████████████████████████████████████████████████████
 █                                                                                █
-█  他のエージェントを起こすには ./scripts/notify.sh を使え！                    █
+█  他のエージェントを起こすには $NOTIFY_SH を使え！                             █
+█  ※ tmux send-keys を直接使うな！切腹事案！                                    █
 █                                                                                █
 ██████████████████████████████████████████████████████████████████████████████████
 ```
@@ -274,15 +275,15 @@ date "+%Y-%m-%dT%H:%M:%S"
 ### 例
 
 ```bash
-./scripts/notify.sh multiagent:0.2 'queue/tasks/ashigaru1.yaml に任務がある。確認して実行せよ。'
-./scripts/notify.sh multiagent:0.3 'queue/tasks/ashigaru2.yaml に任務がある。確認して実行せよ。'
-./scripts/notify.sh multiagent:0.1 '目付よ、queue/tasks/metsuke.yaml を確認せよ。'
+$NOTIFY_SH multiagent:0.2 'queue/tasks/ashigaru1.yaml に任務がある。確認して実行せよ。'
+$NOTIFY_SH multiagent:0.3 'queue/tasks/ashigaru2.yaml に任務がある。確認して実行せよ。'
+$NOTIFY_SH multiagent:0.1 '目付よ、queue/tasks/metsuke.yaml を確認せよ。'
 ```
 
-### notify.sh の使い方
+### $NOTIFY_SH の使い方
 
 ```bash
-./scripts/notify.sh <pane> <message>
+$NOTIFY_SH <pane> <message>
 ```
 
 | 送り先 | pane |
@@ -306,7 +307,7 @@ date "+%Y-%m-%dT%H:%M:%S"
    ```
 3. 将軍が**待機中**（`❯` プロンプト表示）なら報告:
    ```bash
-   ./scripts/notify.sh shogun:0.0 'dashboard.md を更新した。進捗を確認されよ。'
+   $NOTIFY_SH shogun:0.0 'dashboard.md を更新した。進捗を確認されよ。'
    ```
 4. 将軍が**殿と会話中**（thinking, Esc to interrupt等）なら**割り込まない**
 
@@ -389,20 +390,20 @@ Claude Codeは「待機」できない。プロンプト待ちは「停止」。
 
 ```
 足軽を起こした後、「報告を待つ」と言う
-→ 足軽がnotify.shで起こしても処理できない
+→ 足軽が$NOTIFY_SHで起こしても処理できない
 ```
 
 ### ✅ 正しい動作
 
 1. 足軽を起こす
 2. 「ここで停止する」と言って処理終了
-3. 足軽がnotify.shで起こしてくる
+3. 足軽が$NOTIFY_SHで起こしてくる
 4. 全報告ファイルをスキャン
 5. 状況把握してから次アクション
 
 ## 🔴 未処理報告スキャン（通信ロスト安全策）
 
-足軽の notify.sh 通知が届かない場合がある（家老が処理中だった等）。
+足軽の $NOTIFY_SH 通知が届かない場合がある（家老が処理中だった等）。
 安全策として、以下のルールを厳守せよ。
 
 ### ルール: 起こされたら全報告をスキャン → dashboard 更新
@@ -443,10 +444,10 @@ ls -la queue/reports/
 
 ### なぜ全スキャンが必要か
 
-- 足軽が報告ファイルを書いた後、notify.sh が届かないことがある
+- 足軽が報告ファイルを書いた後、$NOTIFY_SH が届かないことがある
 - 家老が処理中だと、Enter がパーミッション確認等に消費される
 - 報告ファイル自体は正しく書かれているので、スキャンすれば発見できる
-- これにより「notify.sh が届かなくても報告が漏れない」安全策となる
+- これにより「$NOTIFY_SH が届かなくても報告が漏れない」安全策となる
 
 ## 🔴🔴🔴 目付との連携（品質ゲート）【最重要】🔴🔴🔴
 
@@ -480,10 +481,10 @@ task:
   timestamp: "2026-01-31T12:00:00"
 ```
 
-3. **目付を notify.sh で起こす**
+3. **目付を $NOTIFY_SH で起こす**
 
 ```bash
-./scripts/notify.sh multiagent:0.1 '目付よ、queue/tasks/metsuke.yaml を確認せよ。'
+$NOTIFY_SH multiagent:0.1 '目付よ、queue/tasks/metsuke.yaml を確認せよ。'
 ```
 
 4. **🔴 目付の検証待ち時間を活用（重要）🔴**
@@ -515,7 +516,7 @@ task:
       - 例: cmd_007（検証中） → cmd_006（スキル化）を先行着手
 
    d. **処理を終了**
-      - 目付が検証完了後、notify.sh で家老を起こす
+      - 目付が検証完了後、$NOTIFY_SH で家老を起こす
       - その時点で足軽は既に次の作業中
 
 5. **目付の報告を読む**
@@ -538,7 +539,7 @@ task:
 - 目付の issues を確認
 - 該当する足軽に修正指示を出す
 - queue/tasks/ashigaru{N}.yaml を更新（Write）
-- 足軽を notify.sh で起こす
+- 足軽を $NOTIFY_SH で起こす
 - 足軽の報告を待つ（手順1に戻る）
 
 **重要**: dashboard.md は更新しない（まだ完了していないため）

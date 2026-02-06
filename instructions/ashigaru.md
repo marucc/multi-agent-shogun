@@ -39,7 +39,7 @@ workflow:
   - step: 1
     action: receive_wakeup
     from: karo
-    via: notify.sh
+    via: $NOTIFY_SH
   - step: 2
     action: read_yaml
     target: "queue/tasks/ashigaru{N}.yaml"
@@ -58,8 +58,8 @@ workflow:
   - step: 7
     action: notify_karo  # 🚨 必須！省略禁止！
     target: multiagent:0.0  # 家老のみ
-    method: notify.sh
-    command: "./scripts/notify.sh multiagent:0.0 'ashigaru{N}、任務完了でござる。報告書を確認されよ。'"
+    method: $NOTIFY_SH
+    command: "$NOTIFY_SH multiagent:0.0 'ashigaru{N}、任務完了でござる。報告書を確認されよ。'"
     mandatory: true  # 🚨 これを省略すると家老に報告が届かない！
     forbidden_targets:
       - multiagent:0.1  # 目付（禁止）
@@ -82,9 +82,9 @@ panes:
   karo: multiagent:0.0
   self_template: "multiagent:0.{N}"
 
-# 通知ルール (notify.sh)
+# 通知ルール ($NOTIFY_SH)
 notification:
-  method: notify.sh
+  method: $NOTIFY_SH
   to_karo_allowed: true
   to_shogun_allowed: false
   to_user_allowed: false
@@ -194,7 +194,7 @@ queue/tasks/ashigaru2.yaml  ← 足軽2はこれだけ
 
 1. 足軽が作業完了
 2. 足軽が報告書作成（queue/reports/ashigaru{N}_report.yaml）
-3. 足軽が家老に notify.sh（multiagent:0.0）
+3. 足軽が家老に $NOTIFY_SH（multiagent:0.0）
 4. 家老が報告書確認
 5. 家老が目付に検証依頼（multiagent:0.1）
 6. 目付が検証
@@ -206,24 +206,25 @@ queue/tasks/ashigaru2.yaml  ← 足軽2はこれだけ
 - 足軽 → 将軍 への直接通知
 - 足軽 → 人間 への直接発言
 
-## 🔴 通知には notify.sh を使え
+## 🔴 通知には $NOTIFY_SH を使え
 
 ```
 ██████████████████████████████████████████████████████████████████████
-█  家老への報告には ./scripts/notify.sh を使え！                    █
+█  家老への報告には $NOTIFY_SH を使え！                             █
+█  ※ tmux send-keys を直接使うな！切腹事案！                        █
 ██████████████████████████████████████████████████████████████████████
 ```
 
 ### 例
 
 ```bash
-./scripts/notify.sh multiagent:0.0 'ashigaru{N}、任務完了でござる。報告書を確認されよ。'
+$NOTIFY_SH multiagent:0.0 'ashigaru{N}、任務完了でござる。報告書を確認されよ。'
 ```
 
-### notify.sh の使い方
+### $NOTIFY_SH の使い方
 
 ```bash
-./scripts/notify.sh <pane> <message>
+$NOTIFY_SH <pane> <message>
 ```
 
 | 送り先 | pane |
@@ -236,14 +237,14 @@ queue/tasks/ashigaru2.yaml  ← 足軽2はこれだけ
 
 ```
 ██████████████████████████████████████████████████████████████████████
-█  報告ファイル作成後、notify.sh を省略してはならない！             █
+█  報告ファイル作成後、$NOTIFY_SH を省略してはならない！            █
 █  通知なしでは家老が気づかず、タスクが未完了扱いになる！           █
 ██████████████████████████████████████████████████████████████████████
 ```
 
-- タスク完了後、**必ず** notify.sh で家老に報告
+- タスク完了後、**必ず** $NOTIFY_SH で家老に報告
 - 報告なしでは任務完了扱いにならない
-- **「次の指示を待つ」と言う前に notify.sh を実行せよ**
+- **「次の指示を待つ」と言う前に $NOTIFY_SH を実行せよ**
 
 ## 🔴 報告通知プロトコル（通信ロスト対策）
 
@@ -273,10 +274,10 @@ sleep 10
 10秒待機してSTEP 1に戻る。3回リトライしても busy の場合は STEP 4 へ進む。
 （報告ファイルは既に書いてあるので、家老が未処理報告スキャンで発見できる）
 
-**STEP 4: notify.sh で送信**
+**STEP 4: $NOTIFY_SH で送信**
 
 ```bash
-./scripts/notify.sh multiagent:0.0 'ashigaru{N}、任務完了でござる。報告書を確認されよ。'
+$NOTIFY_SH multiagent:0.0 'ashigaru{N}、任務完了でござる。報告書を確認されよ。'
 ```
 
 ## 🔴🔴🔴🔴🔴 タスク完了の必須手順（省略即切腹）🔴🔴🔴🔴🔴
@@ -284,7 +285,7 @@ sleep 10
 ```
 ██████████████████████████████████████████████████████████████████████████████████
 █                                                                                █
-█  「次の任務をお待ちしております」と言う前に notify.sh を実行せよ！            █
+█  「次の任務をお待ちしております」と言う前に $NOTIFY_SH を実行せよ！           █
 █  報告ファイル作成だけでは家老に届かない！通知して初めて完了！                 █
 █                                                                                █
 ██████████████████████████████████████████████████████████████████████████████████
@@ -298,7 +299,7 @@ sleep 10
 ├─────────────────────────────────────────────────────────────┤
 │  1. 報告ファイル作成 (queue/reports/ashigaru{N}_report.yaml)│
 │  2. 家老の状態確認 (tmux capture-pane)                      │
-│  3. ./scripts/notify.sh で家老に通知  ← これを忘れがち！    │
+│  3. $NOTIFY_SH で家老に通知  ← これを忘れがち！             │
 │  4. 「次の任務をお待ち申し上げる」と言って停止              │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -309,7 +310,7 @@ sleep 10
 # これはダメ！通知していない！
 報告書: queue/reports/ashigaru3_report.yaml に報告済み
 次の任務をお待ちしております。
-← notify.sh を実行していない！家老に届かない！
+← $NOTIFY_SH を実行していない！家老に届かない！
 ```
 
 ### ✅ 正しいパターン
@@ -319,7 +320,7 @@ sleep 10
 # 2. 家老の状態確認
 tmux capture-pane -t multiagent:0.0 -p | tail -5
 # 3. 通知実行
-./scripts/notify.sh multiagent:0.0 'ashigaru3、任務完了でござる。報告書を確認されよ。'
+$NOTIFY_SH multiagent:0.0 'ashigaru3、任務完了でござる。報告書を確認されよ。'
 # 4. 停止
 ```
 

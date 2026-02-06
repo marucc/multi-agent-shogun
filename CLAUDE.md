@@ -1,7 +1,7 @@
 # multi-agent-shogun システム構成
 
-> **Version**: 1.0.0
-> **Last Updated**: 2026-01-27
+> **Version**: 1.1.0
+> **Last Updated**: 2026-02-04
 
 ## 概要
 multi-agent-shogunは、Claude Code + tmux を使ったマルチエージェント並列開発基盤である。
@@ -9,7 +9,16 @@ multi-agent-shogunは、Claude Code + tmux を使ったマルチエージェン�
 
 ## コンパクション復帰時（全エージェント必須）
 
-コンパクション後は作業前に必ず以下を実行せよ：
+```
+██████████████████████████████████████████████████████████████████████████████████
+█                                                                                █
+█  コンパクション後、summaryだけ見て作業するな！                                 █
+█  必ず指示書とタスクファイルを再読み込みせよ！                                 █
+█                                                                                █
+██████████████████████████████████████████████████████████████████████████████████
+```
+
+### 復帰手順
 
 1. **自分のpane名を確認**: `tmux display-message -p '#W'`
 2. **対応する instructions を読む**:
@@ -17,9 +26,18 @@ multi-agent-shogunは、Claude Code + tmux を使ったマルチエージェン�
    - karo (multiagent:0.0) → instructions/karo.md
    - metsuke (multiagent:0.1) → instructions/metsuke.md
    - ashigaru (multiagent:0.2-N) → instructions/ashigaru.md
-3. **禁止事項を確認してから作業開始**
+3. **タスクファイルを再読み込み**:
+   - 家老: queue/shogun_to_karo.yaml
+   - 目付: queue/tasks/metsuke.yaml
+   - 足軽: queue/tasks/ashigaru{N}.yaml
+4. **禁止事項・チェック項目を確認してから作業開始**
 
-summaryの「次のステップ」を見てすぐ作業してはならぬ。まず自分が誰かを確認せよ。
+### なぜ重要か
+
+- summaryは要約であり、詳細が失われている
+- 特にチェック項目や依存関係の注意点が抜け落ちる
+- 指示書には過去の教訓（失敗事例）も記載されている
+- **再読み込みを怠ると同じ失敗を繰り返す**
 
 ## 階層構造
 
@@ -83,20 +101,32 @@ summaryの「次のステップ」を見てすぐ作業してはならぬ。ま�
 - lockfileとpackage.jsonが不一致だとビルド失敗
 - **これを怠ると本番デプロイが失敗する**
 
-## 🚨🚨🚨 通知には notify.sh を使え（全エージェント必須）🚨🚨🚨
+## 🚨🚨🚨 通知には $NOTIFY_SH を使え（全エージェント必須）🚨🚨🚨
 
 ```
 ██████████████████████████████████████████████████████████████████████████████████
 █                                                                                █
-█  他のエージェントを起こすには ./scripts/notify.sh を使え！                    █
+█  他のエージェントを起こすには $NOTIFY_SH を使え！                             █
+█  ※ tmux send-keys を直接使うな！切腹事案！                                    █
 █                                                                                █
 ██████████████████████████████████████████████████████████████████████████████████
+```
+
+### 前提条件
+
+Claude Code は `claude-shogun` コマンドで起動すること。
+これにより環境変数 `$NOTIFY_SH` が設定される。
+
+```bash
+# 起動方法
+claude-shogun
+claude-shogun --resume
 ```
 
 ### 使い方
 
 ```bash
-./scripts/notify.sh <pane> "<message>"
+$NOTIFY_SH <pane> "<message>"
 ```
 
 ### 送り先一覧
@@ -114,23 +144,23 @@ summaryの「次のステップ」を見てすぐ作業してはならぬ。ま�
 ### 例
 
 ```bash
-./scripts/notify.sh multiagent:0.2 "queue/tasks/ashigaru1.yaml に任務がある。確認せよ。"
+$NOTIFY_SH multiagent:0.2 "queue/tasks/ashigaru1.yaml に任務がある。確認せよ。"
 ```
 
 ## 通信プロトコル
 
-### イベント駆動通信（YAML + notify.sh）
+### イベント駆動通信（YAML + $NOTIFY_SH）
 - ポーリング禁止（API代金節約のため）
 - 指示・報告内容はYAMLファイルに書く
-- 通知は `./scripts/notify.sh <pane> <message>` で相手を起こす
+- 通知は `$NOTIFY_SH <pane> <message>` で相手を起こす
 
 ### 報告の流れ
 - **家老→将軍への報告**:
   1. dashboard.md を更新（必須）
   2. 将軍の状態を確認（tmux capture-pane）
-  3. 将軍が待機中（❯ 表示）→ notify.sh で報告
+  3. 将軍が待機中（❯ 表示）→ $NOTIFY_SH で報告
   4. 将軍が殿と会話中 → 割り込まない（watchdog.shが後で通知）
-- **上→下への指示**: YAML + notify.sh で起こす
+- **上→下への指示**: YAML + $NOTIFY_SH で起こす
 - **watchdog.sh**: dashboard.md更新を検知し、将軍が待機中なら自動通知
 
 ### ファイル構成

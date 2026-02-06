@@ -456,7 +456,7 @@ if [ "$SETUP_ONLY" = false ]; then
     log_war "👑 全軍に Claude Code を召喚中..."
 
     # 将軍（notify.sh でコマンド送信 + Enter自動付与）
-    ./scripts/notify.sh "shogun" "MAX_THINKING_TOKENS=0 claude --model opus --dangerously-skip-permissions"
+    ./scripts/notify.sh "shogun" "MAX_THINKING_TOKENS=0 ./scripts/claude-shogun --model opus --dangerously-skip-permissions"
     log_info "  └─ 将軍、召喚完了"
 
     # 少し待機（安定のため）
@@ -465,7 +465,7 @@ if [ "$SETUP_ONLY" = false ]; then
     # 家老 + 目付 + 足軽（動的ペイン数: N+2）
     MULTIAGENT_PANES=$((ASHIGARU_COUNT + 1))  # 0始まりなので+1（karo, metsuke, ashigaru1-N）
     for i in $(seq 0 $MULTIAGENT_PANES); do
-        ./scripts/notify.sh "multiagent:0.$i" "claude --dangerously-skip-permissions"
+        ./scripts/notify.sh "multiagent:0.$i" "./scripts/claude-shogun --dangerously-skip-permissions"
     done
     log_info "  └─ 家老・目付・足軽、召喚完了"
 
@@ -589,3 +589,5 @@ echo "  ════════════════════════
 echo "   天下布武！勝利を掴め！ (Tenka Fubu! Seize victory!)"
 echo "  ════════════════════════════════════════════════════════════"
 echo ""
+
+$SCRIPT_DIR/watchdog.sh

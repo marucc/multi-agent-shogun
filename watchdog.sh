@@ -3,7 +3,7 @@
 # 使い方: ./watchdog.sh &
 #
 # 機能:
-#   - 将軍・家老のLimit検知とリセット後の自動通知
+#   - 全JOBのLimit検知（ログは1件のみ）、リセット後は将軍・家老に自動通知
 #   - dashboard.md更新検知 → 将軍に通知
 #   - 家老のアイドル検知（未処理報告がある場合）
 
@@ -54,11 +54,11 @@ parse_reset_time_to_timestamp() {
     date -d "$today $hour:$minute" "+%s" 2>/dev/null
 }
 
-# 1. Limit検知（将軍・家老のみログ出力・記録）
+# 1. Limit検知（全JOB対象で記録、ログは別途まとめて出力）
+# 戻り値: 0=Limit検知, 1=検知なし
 check_limit() {
   local pane=$1
   local name=$2
-  local log_enabled=${3:-true}  # 将軍・家老はtrue、足軽はfalse
 
   local output=$(tmux capture-pane -t "$pane" -p 2>/dev/null | tail -20)
 
@@ -68,37 +68,32 @@ check_limit() {
     local reset_time=$(echo "$output" | grep -oE "resets [0-9]+:?[0-9]*[ap]m" | tail -1 | sed 's/resets //')
 
     if [ -n "$reset_time" ]; then
-      # 将軍・家老のみログ出力と記録
-      if [ "$log_enabled" = true ]; then
-        # 既に記録済みでなければ記録
-        if ! grep -q "^$name:$reset_time:" "$LIMIT_RESET_FILE" 2>/dev/null; then
-          local reset_ts=$(parse_reset_time_to_timestamp "$reset_time")
-          log "🚨 [$name] Limit検知 - リセット時刻: $reset_time"
-          echo "$name:$reset_time:$reset_ts:$(date +%s)" >> "$LIMIT_RESET_FILE"
-        fi
+      # 既に記録済みでなければ記録（全JOB対象）
+      if ! grep -q "^$name:$reset_time:" "$LIMIT_RESET_FILE" 2>/dev/null; then
+        local reset_ts=$(parse_reset_time_to_timestamp "$reset_time")
+        echo "$name:$reset_time:$reset_ts:$(date +%s)" >> "$LIMIT_RESET_FILE"
+        return 0  # 新規記録あり
       fi
     fi
-    return 0
+    return 2  # 既に記録済み
   fi
 
   # Limit完全停止検知
   if echo "$output" | grep -qE "You've hit your limit|Stop and wait for limit to reset"; then
-    if [ "$log_enabled" = true ]; then
-      log "🚨 [$name] Limit完全停止検知"
-    fi
     return 0
   fi
 
   return 1
 }
 
-# 2. Limitリセット後の自動再開（将軍・家老のみ通知）
+# 2. Limitリセット後の自動再開（全JOBの記録を見て、将軍・家老に通知）
 check_limit_reset() {
   [ ! -f "$LIMIT_RESET_FILE" ] && return 1
   [ ! -s "$LIMIT_RESET_FILE" ] && return 1  # 空ファイルもスキップ
 
   local now=$(date +%s)
-  local notified_names=""
+  local should_notify=false
+  local reset_info=""
 
   while IFS= read -r line; do
     [ -z "$line" ] && continue
@@ -108,37 +103,40 @@ check_limit_reset() {
     local reset_ts=$(echo "$line" | cut -d: -f3)
     local recorded_ts=$(echo "$line" | cut -d: -f4)
 
-    # 将軍・家老以外はスキップ
-    if [ "$name" != "shogun" ] && [ "$name" != "karo" ]; then
-      continue
-    fi
-
     # リセット時刻を過ぎたか確認（UNIXタイムスタンプで比較）
     if [ "$now" -ge "$reset_ts" ]; then
-      # 記録から6時間以内なら通知
+      # 記録から6時間以内なら通知対象
       local age=$((now - recorded_ts))
       if [ "$age" -lt 21600 ]; then  # 6時間以内の記録
-        log "✅ [$name] Limitリセット時刻($reset_time)を過ぎた - 再開指示"
-
-        case "$name" in
-          shogun)
-            notify "shogun:0.0" "Limitがリセットされた。作業を再開せよ。"
-            ;;
-          karo)
-            notify "multiagent:0.0" "Limitがリセットされた。作業を再開せよ。"
-            ;;
-        esac
-
-        notified_names="$notified_names $name"
+        should_notify=true
+        reset_info="$reset_time"
+        break  # 1つ見つかれば十分
       fi
     fi
   done < "$LIMIT_RESET_FILE"
 
-  # 通知済みの記録を削除
-  for name in $notified_names; do
-    grep -v "^$name:" "$LIMIT_RESET_FILE" > "$LIMIT_RESET_FILE.tmp" 2>/dev/null
-    mv "$LIMIT_RESET_FILE.tmp" "$LIMIT_RESET_FILE" 2>/dev/null || true
-  done
+  # リセット時刻を過ぎていたら将軍・家老に通知
+  if [ "$should_notify" = true ]; then
+    log "✅ Limitリセット時刻($reset_info)を過ぎた - 将軍・家老に再開指示"
+
+    # 家老に通知（先に通知）
+    if tmux has-session -t multiagent 2>/dev/null; then
+      tmux send-keys -t "multiagent:0.0" "" Enter
+      sleep 1
+      notify "multiagent:0.0" "Limitがリセットされた。作業再開せよ。目付や各足軽にも再開指示をせよ。"
+    fi
+
+    # 将軍に通知
+    if tmux has-session -t shogun 2>/dev/null; then
+      sleep 1
+      tmux send-keys -t "shogun:0.0" "" Enter
+      sleep 1
+      notify "shogun:0.0" "Limitがリセットされた。家老にも指示したので家老が動いていなかったら追加指示をすること。"
+    fi
+
+    # 記録ファイルをクリア
+    : > "$LIMIT_RESET_FILE"
+  fi
 
   return 0
 }
@@ -238,32 +236,44 @@ while true; do
   # dashboard.md更新チェック（最優先）
   check_dashboard_update
 
-  # Limitリセット後の自動再開チェック
-  check_limit_reset
+  # Limit検知フラグ（新規記録があれば1件だけログ出力）
+  limit_detected=false
 
   # shogunセッション
   if tmux has-session -t shogun 2>/dev/null; then
-    check_limit "shogun:0.0" "shogun" true
+    check_limit "shogun:0.0" "shogun"
+    [ $? -eq 0 ] && limit_detected=true
     check_long_thinking "shogun:0.0" "shogun"
   fi
 
   # multiagentセッション
   if tmux has-session -t multiagent 2>/dev/null; then
-    # Pane 0: karo（ログ出力あり）
-    check_limit "multiagent:0.0" "karo" true
+    # Pane 0: karo
+    check_limit "multiagent:0.0" "karo"
+    [ $? -eq 0 ] && limit_detected=true
     check_idle "multiagent:0.0" "karo"
     check_long_thinking "multiagent:0.0" "karo"
 
-    # Pane 1: metsuke（ログ出力なし、リセット通知なし）
-    check_limit "multiagent:0.1" "metsuke" false
+    # Pane 1: metsuke
+    check_limit "multiagent:0.1" "metsuke"
+    [ $? -eq 0 ] && limit_detected=true
 
-    # Pane 2-N: ashigaru（ログ出力なし、リセット通知なし）
+    # Pane 2-N: ashigaru
     for i in {2..9}; do
       if tmux list-panes -t multiagent -F '#{pane_index}' 2>/dev/null | grep -q "^$i$"; then
-        check_limit "multiagent:0.$i" "ashigaru$((i-1))" false
+        check_limit "multiagent:0.$i" "ashigaru$((i-1))"
+        [ $? -eq 0 ] && limit_detected=true
       fi
     done
   fi
+
+  # Limit検知があれば1件だけログ出力
+  if [ "$limit_detected" = true ]; then
+    log "🚨 Limit検知"
+  fi
+
+  # Limitリセット後の自動再開チェック（検知・記録の後に実行）
+  check_limit_reset
 
   sleep "$CHECK_INTERVAL"
 done
