@@ -9,6 +9,9 @@
 
 set -e
 
+# 実行時のカレントディレクトリを作業ディレクトリとして保存
+WORK_DIR="$(pwd)"
+
 # スクリプトのディレクトリを取得
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -55,9 +58,13 @@ while [[ $# -gt 0 ]]; do
             echo "  -h, --help        このヘルプを表示"
             echo ""
             echo "例:"
-            echo "  ./shutsujin_departure.sh      # 将軍を起動（Agent Teams がチームを構成）"
+            echo "  ./shutsujin_departure.sh      # tmux セッション構築 + 将軍起動"
+            echo "  ./shogun.sh                    # 将軍にアタッチ"
+            echo "  ./multiagent.sh                # 配下にアタッチ"
             echo ""
-            echo "Agent Teams がエージェントの tmux セッション管理を自動で行います。"
+            echo "2つの tmux セッションを構築します:"
+            echo "  shogun     - 将軍（Claude Code）"
+            echo "  multiagent - 家老・目付・足軽（Agent Teams が自動配備）"
             echo ""
             exit 0
             ;;
@@ -245,7 +252,7 @@ log_success "  └─ ダッシュボード初期化完了 (言語: $LANG_SETTIN
 echo ""
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# STEP 3: Claude Code 起動（Agent Teams 方式）
+# STEP 3: 前提コマンド確認
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # Claude Code CLI の存在チェック
@@ -268,21 +275,84 @@ if ! command -v tmux &> /dev/null; then
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# STEP 4: tmux セッション作成 + 将軍起動
+# STEP 4: tmux セッション構築（shogun + multiagent）
 # ═══════════════════════════════════════════════════════════════════════════════
 # Agent Teams (teammateMode: tmux) は tmux 内で Claude を実行する必要がある。
-# 将軍を tmux セッション内で起動し、Agent Teams がチームメイトの pane を自動作成する。
+# 将軍 → shogun セッション（単独）
+# 家老・目付・足軽 → multiagent セッション（自動移動）
+#
+# tmux hook (after-split-window) により、Agent Teams が shogun 内に spawn した
+# チームメイトの pane を自動的に multiagent セッションに移動する。
 
 log_war "👑 将軍の本陣を構築中..."
 
 # 既存セッションをクリーンアップ
 tmux kill-session -t shogun 2>/dev/null && log_info "  └─ 既存の shogun セッション撤収" || true
+tmux kill-session -t multiagent 2>/dev/null && log_info "  └─ 既存の multiagent セッション撤収" || true
 
-# 将軍用 tmux セッションを作成し、claude-shogun を起動
+# 将軍用 tmux セッション（Claude Code を起動）
 tmux new-session -d -s shogun -n "shogun" \
-    "cd '$(pwd)' && ./scripts/claude-shogun --dangerously-skip-permissions"
+    "cd '${WORK_DIR}' && '${SCRIPT_DIR}/scripts/claude-shogun' --dangerously-skip-permissions"
 
-log_success "  └─ 将軍の本陣、構築完了"
+# チームメイト用 tmux セッション（配下の陣）
+tmux new-session -d -s multiagent -n "agents"
+
+# tmux フック: shogun で pane が split されたら multiagent に自動移動
+# Agent Teams が teammateMode: tmux で pane を作るたび発火する
+tmux set-hook -t shogun after-split-window \
+    "move-pane -t multiagent:agents ; select-layout -t multiagent:agents tiled"
+
+log_success "  └─ 将軍の本陣（shogun）構築完了"
+log_success "  └─ 配下の陣（multiagent）構築完了"
+log_success "  └─ 自動配備フック設定完了"
+echo ""
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# STEP 5: 将軍にチーム構成の初期指示を送信
+# ═══════════════════════════════════════════════════════════════════════════════
+# Claude Code が起動完了するまで待機し、チーム構成指示を自動送信する。
+# これにより、旧システムと同様に起動時に全エージェントが配備される。
+
+log_war "⏳ 将軍の起動を待機中..."
+
+# Claude Code の起動完了を待つ（プロンプト表示を検知）
+READY=false
+for i in $(seq 1 30); do
+    if tmux capture-pane -t shogun:shogun -p 2>/dev/null | grep -qE '❯|>.*$'; then
+        READY=true
+        break
+    fi
+    sleep 1
+done
+
+if [ "$READY" = true ]; then
+    log_success "  └─ 将軍、起動完了"
+
+    # 足軽 spawn 指示を動的に構成
+    ASHIGARU_SPAWN=""
+    for i in $(seq 1 "$ASHIGARU_COUNT"); do
+        ASHIGARU_SPAWN="${ASHIGARU_SPAWN}
+- 足軽${i}号（ashigaru${i}）: instructions/ashigaru.md を読ませよ"
+    done
+
+    # チーム構成の初期プロンプトを送信
+    INIT_PROMPT="instructions/shogun.md を読んで将軍として起動せよ。CLAUDE.md も読め。config/settings.yaml で言語設定を確認せよ。
+
+TeamCreate でチーム shogun-team を作成し、以下のチームメイトを Task で spawn せよ:
+- 家老（karo）: instructions/karo.md を読ませよ。mode は delegate にせよ。
+- 目付（metsuke）: instructions/metsuke.md を読ませよ。${ASHIGARU_SPAWN}
+
+全員が起動したら、殿の指示を待て。"
+
+    tmux send-keys -t shogun:shogun "$INIT_PROMPT"
+    sleep 2
+    tmux send-keys -t shogun:shogun Enter
+    log_success "  └─ チーム構成指示を送信"
+else
+    log_info "⚠️  将軍の起動に時間がかかっています"
+    log_info "  アタッチ後に手動でチーム構成を指示してください"
+fi
+
 echo ""
 
 echo ""
@@ -294,15 +364,24 @@ echo ""
 echo "  ┌──────────────────────────────────────────────────────────┐"
 echo "  │  Agent Teams 方式（tmux モード）                         │"
 echo "  │                                                          │"
-echo "  │  将軍が tmux セッション 'shogun' で起動しました。        │"
-echo "  │  Agent Teams がチームメイトを tmux pane に自動 spawn。   │"
+echo "  │  将軍（shogun）と配下（multiagent）の2陣を構築。        │"
+echo "  │  チーム構成指示を自動送信済み。                          │"
+echo "  │  Agent Teams がチームメイトを multiagent に自動配備。    │"
 echo "  │                                                          │"
-echo "  │  将軍にアタッチして指示を出してください:                  │"
-echo "  │    tmux attach -t shogun                                 │"
+echo "  │  ── 操作方法 ──                                          │"
 echo "  │                                                          │"
-echo "  │  エージェント一覧:                                        │"
+echo "  │  将軍にアタッチ（指示を出す）:                            │"
+echo "  │    ./shogun.sh  または  tmux attach -t shogun            │"
+echo "  │                                                          │"
+echo "  │  配下にアタッチ（チームメイトを観察）:                    │"
+echo "  │    ./multiagent.sh  または  tmux attach -t multiagent    │"
+echo "  │                                                          │"
+echo "  │  セッション一覧:                                          │"
 echo "  │    tmux ls                                               │"
-echo "  │    Ctrl+b → 矢印キー でペイン切替                       │"
+echo "  │  ペイン切替:                                              │"
+echo "  │    Ctrl+b → 矢印キー                                    │"
+echo "  │  デタッチ（セッションから離脱）:                          │"
+echo "  │    Ctrl+b → d                                            │"
 echo "  └──────────────────────────────────────────────────────────┘"
 echo ""
 echo "  ════════════════════════════════════════════════════════════"
