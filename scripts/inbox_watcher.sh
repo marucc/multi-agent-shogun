@@ -135,24 +135,43 @@ send_cli_command() {
     fi
 }
 
-# ─── Send wake-up nudge via send-keys ───
-# ONLY sends a short nudge. Never sends message content.
+# ─── Agent self-watch detection ───
+# Check if the agent has an active inotifywait on its inbox.
+# If yes, the agent will self-wake — no nudge needed.
+agent_has_self_watch() {
+    pgrep -f "inotifywait.*inbox/${AGENT_ID}.yaml" >/dev/null 2>&1
+}
+
+# ─── Send wake-up nudge ───
+# Layered approach (send-keys撲滅):
+#   1. If agent has active inotifywait self-watch → skip (agent wakes itself)
+#   2. Fallback: paste-buffer + Enter (avoids send-keys for content)
 # timeout prevents the 1.5-hour hang incident from recurring.
 send_wakeup() {
     local unread_count="$1"
     local nudge="inbox${unread_count}"
 
-    if ! timeout "$SEND_KEYS_TIMEOUT" tmux send-keys -t "$PANE_TARGET" "$nudge" 2>/dev/null; then
-        echo "[$(date)] WARNING: send-keys nudge timed out ($SEND_KEYS_TIMEOUT s)" >&2
+    # Tier 1: Agent self-watch — skip nudge entirely
+    if agent_has_self_watch; then
+        echo "[$(date)] [SKIP] Agent $AGENT_ID has active self-watch, no nudge needed" >&2
+        return 0
+    fi
+
+    # Tier 2: paste-buffer fallback (replaces send-keys for content)
+    echo "[$(date)] [FALLBACK] Sending paste-buffer nudge to $AGENT_ID" >&2
+
+    tmux set-buffer -b "nudge_${AGENT_ID}" "$nudge"
+    if ! timeout "$SEND_KEYS_TIMEOUT" tmux paste-buffer -t "$PANE_TARGET" -b "nudge_${AGENT_ID}" -d 2>/dev/null; then
+        echo "[$(date)] WARNING: paste-buffer timed out ($SEND_KEYS_TIMEOUT s)" >&2
         return 1
     fi
-    sleep 0.3
+    sleep 0.1
     if ! timeout "$SEND_KEYS_TIMEOUT" tmux send-keys -t "$PANE_TARGET" Enter 2>/dev/null; then
         echo "[$(date)] WARNING: send-keys Enter timed out ($SEND_KEYS_TIMEOUT s)" >&2
         return 1
     fi
 
-    echo "[$(date)] Wake-up sent to $AGENT_ID (${unread_count} unread)" >&2
+    echo "[$(date)] Wake-up sent to $AGENT_ID (${unread_count} unread via paste-buffer)" >&2
     return 0
 }
 
