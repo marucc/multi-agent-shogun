@@ -175,7 +175,7 @@ config/settings.yaml で各種設定を行う。
 
 ```yaml
 language: ja        # 言語設定（ja, en, es, zh, ko, fr, de 等）
-ashigaru_count: 3   # 足軽の数（1〜8）
+ashigaru_count: 7   # 足軽の数（1〜7）
 ```
 
 ### 言語設定

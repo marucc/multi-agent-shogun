@@ -21,11 +21,11 @@ if [ -f "${SHOGUN_ROOT}/config/settings.yaml" ]; then
     LANG_SETTING=$(grep "^language:" "${SHOGUN_ROOT}/config/settings.yaml" 2>/dev/null | awk '{print $2}' || echo "ja")
 fi
 
-# 足軽数を読み取り（デフォルト: 3）
-ASHIGARU_COUNT=3
+# 足軽数を読み取り（デフォルト: 7）
+ASHIGARU_COUNT=7
 if [ -f "${SHOGUN_ROOT}/config/settings.yaml" ]; then
-    ASHIGARU_COUNT=$(grep "^ashigaru_count:" "${SHOGUN_ROOT}/config/settings.yaml" 2>/dev/null | awk '{print $2}' || echo "3")
-    ASHIGARU_COUNT=${ASHIGARU_COUNT:-3}
+    ASHIGARU_COUNT=$(grep "^ashigaru_count:" "${SHOGUN_ROOT}/config/settings.yaml" 2>/dev/null | awk '{print $2}' || echo "7")
+    ASHIGARU_COUNT=${ASHIGARU_COUNT:-7}
 fi
 
 # 色付きログ関数（戦国風）

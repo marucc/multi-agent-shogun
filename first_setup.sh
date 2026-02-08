@@ -349,9 +349,9 @@ if [ ! -f "$SHOGUN_ROOT/config/settings.yaml" ]; then
 # その他の言語コード（es, zh, ko, fr, de 等）も対応
 language: ja
 
-# 足軽の数（1〜8）
+# 足軽の数（1〜7）
 # tmuxペイン数やタスクファイル数に影響
-ashigaru_count: 3
+ashigaru_count: 7
 
 # スキル設定
 skill:
@@ -396,11 +396,11 @@ RESULTS+=("設定ファイル: OK")
 # ============================================================
 log_step "STEP 7: キューファイル初期化"
 
-# 足軽数を設定ファイルから読み込み（デフォルト: 3）
-ASHIGARU_COUNT=3
+# 足軽数を設定ファイルから読み込み（デフォルト: 7）
+ASHIGARU_COUNT=7
 if [ -f "$SHOGUN_ROOT/config/settings.yaml" ]; then
-    ASHIGARU_COUNT=$(grep "^ashigaru_count:" "$SHOGUN_ROOT/config/settings.yaml" 2>/dev/null | awk '{print $2}' || echo "3")
-    ASHIGARU_COUNT=${ASHIGARU_COUNT:-3}
+    ASHIGARU_COUNT=$(grep "^ashigaru_count:" "$SHOGUN_ROOT/config/settings.yaml" 2>/dev/null | awk '{print $2}' || echo "7")
+    ASHIGARU_COUNT=${ASHIGARU_COUNT:-7}
 fi
 log_info "足軽数: $ASHIGARU_COUNT"
 
