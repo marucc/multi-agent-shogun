@@ -10,10 +10,15 @@
 #   T-SW-005: send_wakeup — no paste-buffer or send-keys used for nudge
 #   T-SW-006: agent_has_self_watch — detects inotifywait process
 #   T-SW-007: agent_has_self_watch — no inotifywait → returns 1
-#   T-SW-008: send_cli_command — /clear still uses send-keys (kept)
-#   T-SW-009: send_cli_command — /model still uses send-keys (kept)
+#   T-SW-008: send_cli_command — /clear uses pty direct write
+#   T-SW-009: send_cli_command — /model uses pty direct write
 #   T-SW-010: nudge content format — inboxN (backward compatible)
 #   T-SW-011: backward compat — functions exist in inbox_watcher.sh
+#   T-ESC-001: escalation — no unread → FIRST_UNREAD_SEEN stays 0
+#   T-ESC-002: escalation — unread < 2min → standard nudge
+#   T-ESC-003: escalation — unread 2-4min → Escape+nudge
+#   T-ESC-004: escalation — unread > 4min → /clear sent
+#   T-ESC-005: escalation — /clear cooldown → falls back to Escape+nudge
 
 # --- セットアップ ---
 
@@ -155,6 +160,35 @@ send_cli_command() {
     printf '%s\n' "\$actual_cmd" > "\$pty"
     echo "PTY_CLI:\$actual_cmd" >> "$PTY_LOG"
     return 0
+}
+
+# Escalation state variables
+FIRST_UNREAD_SEEN=0
+LAST_CLEAR_TS=0
+ESCALATE_PHASE1=120
+ESCALATE_PHASE2=240
+ESCALATE_COOLDOWN=300
+
+# send_wakeup_with_escape — Escape×2 + nudge
+send_wakeup_with_escape() {
+    local unread_count="\$1"
+    local nudge="inbox\${unread_count}"
+
+    if agent_has_self_watch; then
+        return 0
+    fi
+
+    local pty
+    pty=\$(tmux display-message -t "\$PANE_TARGET" -p '#{pane_tty}' 2>/dev/null)
+
+    if [ -n "\$pty" ] && [ -w "\$pty" ]; then
+        printf '\x1b\x1b' > "\$pty"
+        sleep 0.1  # shortened for tests
+        printf '%s\n' "\$nudge" > "\$pty"
+        echo "PTY_ESC_WRITE:\$nudge" >> "$PTY_LOG"
+        return 0
+    fi
+    return 1
 }
 HARNESS
     chmod +x "$TEST_HARNESS"
@@ -305,4 +339,101 @@ MOCK
     ! echo "$executable_lines" | grep -q "send-keys"
     ! echo "$executable_lines" | grep -q "paste-buffer"
     ! echo "$executable_lines" | grep -q "set-buffer"
+}
+
+# --- T-ESC-001: no unread → FIRST_UNREAD_SEEN stays 0 ---
+
+@test "T-ESC-001: escalation state resets when no unread messages" {
+    run bash -c '
+        source "'"$TEST_HARNESS"'"
+        FIRST_UNREAD_SEEN=12345
+        # Simulate no unread
+        normal_count=0
+        if [ "$normal_count" -gt 0 ] 2>/dev/null; then
+            echo "SHOULD_NOT_REACH"
+        else
+            FIRST_UNREAD_SEEN=0
+        fi
+        echo "FIRST_UNREAD_SEEN=$FIRST_UNREAD_SEEN"
+    '
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -q "FIRST_UNREAD_SEEN=0"
+}
+
+# --- T-ESC-002: unread < 2min → standard nudge ---
+
+@test "T-ESC-002: escalation Phase 1 — unread under 2min uses standard nudge" {
+    run bash -c '
+        source "'"$TEST_HARNESS"'"
+        now=$(date +%s)
+        FIRST_UNREAD_SEEN=$((now - 30))  # 30 seconds ago
+        age=$((now - FIRST_UNREAD_SEEN))
+        if [ "$age" -lt "$ESCALATE_PHASE1" ]; then
+            send_wakeup 2
+            echo "PHASE1_NUDGE"
+        fi
+    '
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -q "PHASE1_NUDGE"
+    grep -q "PTY_WRITE:inbox2" "$PTY_LOG"
+    ! grep -q "PTY_ESC_WRITE" "$PTY_LOG"
+    ! grep -q "PTY_CLI" "$PTY_LOG"
+}
+
+# --- T-ESC-003: unread 2-4min → Escape+nudge ---
+
+@test "T-ESC-003: escalation Phase 2 — unread 2-4min uses Escape+nudge" {
+    run bash -c '
+        source "'"$TEST_HARNESS"'"
+        now=$(date +%s)
+        FIRST_UNREAD_SEEN=$((now - 180))  # 3 minutes ago
+        age=$((now - FIRST_UNREAD_SEEN))
+        if [ "$age" -ge "$ESCALATE_PHASE1" ] && [ "$age" -lt "$ESCALATE_PHASE2" ]; then
+            send_wakeup_with_escape 3
+            echo "PHASE2_ESCAPE_NUDGE"
+        fi
+    '
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -q "PHASE2_ESCAPE_NUDGE"
+    grep -q "PTY_ESC_WRITE:inbox3" "$PTY_LOG"
+    ! grep -q "PTY_CLI" "$PTY_LOG"
+}
+
+# --- T-ESC-004: unread > 4min → /clear sent ---
+
+@test "T-ESC-004: escalation Phase 3 — unread over 4min sends /clear" {
+    run bash -c '
+        source "'"$TEST_HARNESS"'"
+        now=$(date +%s)
+        FIRST_UNREAD_SEEN=$((now - 300))  # 5 minutes ago
+        LAST_CLEAR_TS=0  # no recent /clear
+        age=$((now - FIRST_UNREAD_SEEN))
+        if [ "$age" -ge "$ESCALATE_PHASE2" ] && [ "$LAST_CLEAR_TS" -lt "$((now - ESCALATE_COOLDOWN))" ]; then
+            send_cli_command "/clear"
+            echo "PHASE3_CLEAR"
+        fi
+    '
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -q "PHASE3_CLEAR"
+    grep -q "PTY_CLI:/clear" "$PTY_LOG"
+}
+
+# --- T-ESC-005: /clear cooldown → falls back to Escape+nudge ---
+
+@test "T-ESC-005: escalation /clear cooldown — falls back to Escape+nudge" {
+    run bash -c '
+        source "'"$TEST_HARNESS"'"
+        now=$(date +%s)
+        FIRST_UNREAD_SEEN=$((now - 300))  # 5 minutes ago
+        LAST_CLEAR_TS=$((now - 60))  # /clear sent 1 min ago (within 5min cooldown)
+        age=$((now - FIRST_UNREAD_SEEN))
+        if [ "$age" -ge "$ESCALATE_PHASE2" ] && [ "$LAST_CLEAR_TS" -ge "$((now - ESCALATE_COOLDOWN))" ]; then
+            send_wakeup_with_escape 4
+            echo "COOLDOWN_FALLBACK"
+        fi
+    '
+    [ "$status" -eq 0 ]
+    echo "$output" | grep -q "COOLDOWN_FALLBACK"
+    grep -q "PTY_ESC_WRITE:inbox4" "$PTY_LOG"
+    ! grep -q "PTY_CLI" "$PTY_LOG"
 }

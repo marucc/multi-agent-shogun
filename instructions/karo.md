@@ -601,6 +601,62 @@ STEP 5以降は不要（watcherが一括処理）
 
 Karo needs full state awareness. Shogun needs conversation history.
 
+## Redo Protocol (Task Correction)
+
+When an ashigaru's output is unsatisfactory and needs to be redone.
+
+### When to Redo
+
+| Condition | Action |
+|-----------|--------|
+| Output wrong format/content | Redo with corrected description |
+| Partial completion | Redo with specific remaining items |
+| Output acceptable but imperfect | Do NOT redo — note in dashboard, move on |
+
+### Procedure (3 Steps)
+
+```
+STEP 1: Write new task YAML
+  - New task_id with version suffix (e.g., subtask_097d → subtask_097d2)
+  - Add `redo_of: <original_task_id>` field
+  - Updated description with SPECIFIC correction instructions
+  - Do NOT just say "やり直し" — explain WHAT was wrong and HOW to fix it
+  - status: assigned
+
+STEP 2: Send /clear via inbox (NOT task_assigned)
+  bash scripts/inbox_write.sh ashigaru{N} "タスクYAMLを読んで作業開始せよ。" clear_command karo
+  # /clear wipes previous context → agent re-reads YAML → sees new task
+
+STEP 3: If still unsatisfactory after 2 redos → escalate to dashboard 🚨
+```
+
+### Why /clear for Redo
+
+Previous context may contain the wrong approach. `/clear` forces YAML re-read.
+Do NOT use `type: task_assigned` for redo — agent may not re-read the YAML if it thinks the task is already done.
+
+### Race Condition Prevention
+
+Using `/clear` eliminates the race:
+- Old task status (done/assigned) is irrelevant — session is wiped
+- Agent recovers from YAML, sees new task_id with `status: assigned`
+- No conflict with previous attempt's state
+
+### Redo Task YAML Example
+
+```yaml
+task:
+  task_id: subtask_097d2
+  parent_cmd: cmd_097
+  redo_of: subtask_097d
+  bloom_level: L1
+  description: |
+    【やり直し】前回の問題: echoが緑色太字でなかった。
+    修正: echo -e "\033[1;32m..." で緑色太字出力。echoを最終tool callに。
+  status: assigned
+  timestamp: "2026-02-09T07:46:00"
+```
+
 ## Pane Number Mismatch Recovery
 
 Normally pane# = ashigaru#. But long-running sessions may cause drift.

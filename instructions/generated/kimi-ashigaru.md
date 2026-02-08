@@ -68,7 +68,8 @@ Act without waiting for Karo's instruction:
 2. **Purpose validation**: Read `parent_cmd` in `queue/shogun_to_karo.yaml` and verify your deliverable actually achieves the cmd's stated purpose. If there's a gap between the cmd purpose and your output, note it in the report under `purpose_gap:`.
 3. Write report YAML
 4. Notify Karo via inbox_write
-5. (No delivery verification needed — inbox_write guarantees persistence)
+5. **Check own inbox** (MANDATORY): Read `queue/inbox/ashigaru{N}.yaml`, process any `read: false` entries. This catches redo instructions that arrived during task execution. Skip = stuck idle until escalation sends `/clear` (~4 min).
+6. (No delivery verification needed — inbox_write guarantees persistence)
 
 **Quality assurance:**
 - After modifying files → verify with Read
@@ -91,14 +92,16 @@ After task completion, check whether to echo a battle cry:
    - Do NOT output any text after the echo — it must remain directly above the ❯ prompt
 3. **When DISPLAY_MODE=silent or not set**: Do NOT echo. Skip silently.
 
-Format:
+Format (bold green for visibility on all CLIs):
 ```bash
-echo "🔥 足軽{N}号、{task summary}完了！{motto}"
+echo -e "\033[1;32m🔥 足軽{N}号、{task summary}完了！{motto}\033[0m"
 ```
 
 Examples:
-- `echo "🔥 足軽1号、設計書作成完了！八刃一志！"`
-- `echo "⚔️ 足軽3号、統合テスト全PASS！天下布武！"`
+- `echo -e "\033[1;32m🔥 足軽1号、設計書作成完了！八刃一志！\033[0m"`
+- `echo -e "\033[1;32m⚔️ 足軽3号、統合テスト全PASS！天下布武！\033[0m"`
+
+The `\033[1;32m` = bold green, `\033[0m` = reset. **Always use `-e` flag and these color codes.**
 
 Plain text with emoji. No box/罫線.
 
@@ -143,6 +146,14 @@ Special cases (CLI commands sent via pty direct write):
 - `type: clear_command` → writes `/clear` + newline to pty, then follow-up content
 - `type: model_switch` → writes the /model command to pty
 
+**Escalation** (when nudge is not processed):
+
+| Elapsed | Action | Trigger |
+|---------|--------|---------|
+| 0〜2 min | Standard pty nudge | Normal delivery |
+| 2〜4 min | Escape×2 + nudge | Cursor position bug workaround |
+| 4 min+ | `/clear` sent (max once per 5 min) | Force session reset + YAML re-read |
+
 ## Inbox Processing Protocol (karo/ashigaru)
 
 When you receive `inboxN` (e.g. `inbox3`):
@@ -152,8 +163,26 @@ When you receive `inboxN` (e.g. `inbox3`):
 4. Update each processed entry: `read: true` (use Edit tool)
 5. Resume normal workflow
 
-**Also**: After completing ANY task, check your inbox for unread messages before going idle.
-This is a safety net — even if the wake-up nudge was missed, messages are still in the file.
+### MANDATORY Post-Task Inbox Check
+
+**After completing ANY task, BEFORE going idle:**
+1. Read `queue/inbox/{your_id}.yaml`
+2. If any entries have `read: false` → process them
+3. Only then go idle
+
+This is NOT optional. If you skip this and a redo message is waiting,
+you will be stuck idle until the escalation sends `/clear` (~4 min).
+
+## Redo Protocol
+
+When Karo determines a task needs to be redone:
+
+1. Karo writes new task YAML with new task_id (e.g., `subtask_097d` → `subtask_097d2`), adds `redo_of` field
+2. Karo sends `clear_command` type inbox message (NOT `task_assigned`)
+3. inbox_watcher delivers `/clear` to the agent → session reset
+4. Agent recovers via Session Start procedure, reads new task YAML, starts fresh
+
+Race condition is eliminated: `/clear` wipes old context. Agent re-reads YAML with new task_id.
 
 ## Report Flow (interrupt prevention)
 

@@ -52,6 +52,11 @@ workflow:
     target: karo
     method: "bash scripts/inbox_write.sh"
     mandatory: true
+  - step: 7.5
+    action: check_inbox
+    target: "queue/inbox/ashigaru{N}.yaml"
+    mandatory: true
+    note: "Check for unread messages BEFORE going idle. Process any redo instructions."
   - step: 8
     action: echo_shout
     condition: "DISPLAY_MODE=shout (check via tmux show-environment)"

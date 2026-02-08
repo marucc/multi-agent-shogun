@@ -245,6 +245,14 @@ Special cases (CLI commands sent via pty direct write):
 - `type: clear_command` → writes `/clear` + newline to pty, then follow-up content
 - `type: model_switch` → writes the /model command to pty
 
+**Escalation** (when nudge is not processed):
+
+| Elapsed | Action | Trigger |
+|---------|--------|---------|
+| 0〜2 min | Standard pty nudge | Normal delivery |
+| 2〜4 min | Escape×2 + nudge | Cursor position bug workaround |
+| 4 min+ | `/clear` sent (max once per 5 min) | Force session reset + YAML re-read |
+
 ## Inbox Processing Protocol (karo/ashigaru)
 
 When you receive `inboxN` (e.g. `inbox3`):
@@ -254,8 +262,26 @@ When you receive `inboxN` (e.g. `inbox3`):
 4. Update each processed entry: `read: true` (use Edit tool)
 5. Resume normal workflow
 
-**Also**: After completing ANY task, check your inbox for unread messages before going idle.
-This is a safety net — even if the wake-up nudge was missed, messages are still in the file.
+### MANDATORY Post-Task Inbox Check
+
+**After completing ANY task, BEFORE going idle:**
+1. Read `queue/inbox/{your_id}.yaml`
+2. If any entries have `read: false` → process them
+3. Only then go idle
+
+This is NOT optional. If you skip this and a redo message is waiting,
+you will be stuck idle until the escalation sends `/clear` (~4 min).
+
+## Redo Protocol
+
+When Karo determines a task needs to be redone:
+
+1. Karo writes new task YAML with new task_id (e.g., `subtask_097d` → `subtask_097d2`), adds `redo_of` field
+2. Karo sends `clear_command` type inbox message (NOT `task_assigned`)
+3. inbox_watcher delivers `/clear` to the agent → session reset
+4. Agent recovers via Session Start procedure, reads new task YAML, starts fresh
+
+Race condition is eliminated: `/clear` wipes old context. Agent re-reads YAML with new task_id.
 
 ## Report Flow (interrupt prevention)
 

@@ -11,8 +11,13 @@
 #   冪等: 2回届いてもunreadがなければ何もしない
 #
 # inotifywait でファイル変更を検知（イベント駆動、ポーリングではない）
-# Fallback 1: 60秒タイムアウト（WSL2 inotify不発時の安全網）
+# Fallback 1: 30秒タイムアウト（WSL2 inotify不発時の安全網）
 # Fallback 2: rc=1処理（Claude Code atomic write = tmp+rename でinode変更時）
+#
+# エスカレーション（未読メッセージが放置されている場合）:
+#   0〜2分: 通常nudge（pty direct write）
+#   2〜4分: Escape×2 + nudge（カーソル位置バグ対策）
+#   4分〜 : /clear送信（5分に1回まで。強制リセット+YAML再読）
 # ═══════════════════════════════════════════════════════════════
 
 set -euo pipefail
@@ -38,6 +43,14 @@ if [ ! -f "$INBOX" ]; then
 fi
 
 echo "[$(date)] inbox_watcher started — agent: $AGENT_ID, pane: $PANE_TARGET, cli: $CLI_TYPE" >&2
+
+# ─── Escalation state ───
+# Time-based escalation: track how long unread messages have been waiting
+FIRST_UNREAD_SEEN=0   # epoch when first unread was detected (0 = no unread)
+LAST_CLEAR_TS=0       # epoch of last /clear escalation (throttle: max once per 5min)
+ESCALATE_PHASE1=120   # seconds: switch to Escape+nudge (2 min)
+ESCALATE_PHASE2=240   # seconds: switch to /clear (4 min)
+ESCALATE_COOLDOWN=300  # seconds: min interval between /clear sends (5 min)
 
 # Ensure inotifywait is available
 if ! command -v inotifywait &>/dev/null; then
@@ -170,6 +183,33 @@ send_wakeup() {
     return 1
 }
 
+# ─── Send wake-up nudge with Escape prefix ───
+# Phase 2 escalation: send Escape×2 to clear stuck cursor, then nudge.
+# Addresses the "echo last tool call" cursor position bug.
+send_wakeup_with_escape() {
+    local unread_count="$1"
+    local nudge="inbox${unread_count}"
+
+    if agent_has_self_watch; then
+        return 0
+    fi
+
+    local pty
+    pty=$(tmux display-message -t "$PANE_TARGET" -p '#{pane_tty}' 2>/dev/null)
+
+    if [ -n "$pty" ] && [ -w "$pty" ]; then
+        echo "[$(date)] [PTY] ESCALATION Phase 2: Escape×2 + nudge to $pty for $AGENT_ID" >&2
+        printf '\x1b\x1b' > "$pty"
+        sleep 1
+        printf '%s\n' "$nudge" > "$pty"
+        echo "[$(date)] Escape+nudge sent to $AGENT_ID (${unread_count} unread)" >&2
+        return 0
+    fi
+
+    echo "[$(date)] WARNING: pty not available for Escape+nudge ($AGENT_ID)" >&2
+    return 1
+}
+
 # ─── Process cycle ───
 process_unread() {
     local info
@@ -194,13 +234,48 @@ for s in data.get('specials', []):
         done
     fi
 
-    # Send wake-up nudge for normal messages
+    # Send wake-up nudge for normal messages (with escalation)
     local normal_count
     normal_count=$(echo "$info" | python3 -c "import sys,json; print(json.load(sys.stdin).get('count',0))" 2>/dev/null)
 
     if [ "$normal_count" -gt 0 ] 2>/dev/null; then
-        echo "[$(date)] $normal_count normal unread message(s) for $AGENT_ID" >&2
-        send_wakeup "$normal_count"
+        local now
+        now=$(date +%s)
+
+        # Track when we first saw unread messages
+        if [ "$FIRST_UNREAD_SEEN" -eq 0 ]; then
+            FIRST_UNREAD_SEEN=$now
+        fi
+
+        local age=$((now - FIRST_UNREAD_SEEN))
+
+        if [ "$age" -lt "$ESCALATE_PHASE1" ]; then
+            # Phase 1 (0-2 min): Standard nudge
+            echo "[$(date)] $normal_count unread for $AGENT_ID (${age}s)" >&2
+            send_wakeup "$normal_count"
+        elif [ "$age" -lt "$ESCALATE_PHASE2" ]; then
+            # Phase 2 (2-4 min): Escape + nudge
+            echo "[$(date)] $normal_count unread for $AGENT_ID (${age}s — escalating: Escape+nudge)" >&2
+            send_wakeup_with_escape "$normal_count"
+        else
+            # Phase 3 (4+ min): /clear (throttled to once per 5 min)
+            if [ "$LAST_CLEAR_TS" -lt "$((now - ESCALATE_COOLDOWN))" ]; then
+                echo "[$(date)] ESCALATION Phase 3: Agent $AGENT_ID unresponsive for ${age}s. Sending /clear." >&2
+                send_cli_command "/clear"
+                LAST_CLEAR_TS=$now
+                FIRST_UNREAD_SEEN=0  # Reset — will re-detect on next cycle
+            else
+                # Cooldown active — fall back to Escape+nudge
+                echo "[$(date)] $normal_count unread for $AGENT_ID (${age}s — /clear cooldown, using Escape+nudge)" >&2
+                send_wakeup_with_escape "$normal_count"
+            fi
+        fi
+    else
+        # No unread messages — reset escalation tracker
+        if [ "$FIRST_UNREAD_SEEN" -ne 0 ]; then
+            echo "[$(date)] All messages read for $AGENT_ID — escalation reset" >&2
+        fi
+        FIRST_UNREAD_SEEN=0
     fi
 }
 
@@ -208,9 +283,9 @@ for s in data.get('specials', []):
 process_unread
 
 # ─── Main loop: event-driven via inotifywait ───
-# Timeout 60s: WSL2 /mnt/c/ can miss inotify events.
-# On timeout (exit 2), check for unread messages as a safety net.
-INOTIFY_TIMEOUT=60
+# Timeout 30s: WSL2 /mnt/c/ can miss inotify events.
+# Shorter timeout = faster escalation retry for stuck agents.
+INOTIFY_TIMEOUT=30
 
 while true; do
     # Block until file is modified OR timeout (safety net for WSL2)
@@ -224,7 +299,7 @@ while true; do
     # rc=1: watch invalidated — Claude Code uses atomic write (tmp+rename),
     #        which replaces the inode. inotifywait sees DELETE_SELF → rc=1.
     #        File still exists with new inode. Treat as event, re-watch next loop.
-    # rc=2: timeout (60s safety net for WSL2 inotify gaps)
+    # rc=2: timeout (30s safety net for WSL2 inotify gaps)
     # All cases: check for unread, then loop back to inotifywait (re-watches new inode)
     sleep 0.3
 
