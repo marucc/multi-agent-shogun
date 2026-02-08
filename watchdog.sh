@@ -1,6 +1,7 @@
 #!/bin/bash
 # watchdog.sh - multi-agent-shogun 監視スクリプト
-# 使い方: ./watchdog.sh &
+# 使い方: ./watchdog.sh [--project-dir=/path/to/project]
+#         ./watchdog.sh &
 #
 # 機能:
 #   - 全JOBのLimit検知（ログは1件のみ）、リセット後は将軍・家老に自動通知
@@ -8,12 +9,37 @@
 #   - 家老のアイドル検知（未処理報告がある場合）
 
 SHOGUN_ROOT="$(cd "$(dirname "$0")" && pwd)"
-LOG_FILE="$SHOGUN_ROOT/logs/watchdog.log"
+
+# WORK_DIR 発見ロジック
+PROJECT_DIR=""
+for arg in "$@"; do
+    case $arg in
+        --project-dir=*) PROJECT_DIR="${arg#*=}" ;;
+    esac
+done
+
+if [ -n "$PROJECT_DIR" ] && [ -d "${PROJECT_DIR}/.shogun" ]; then
+    WORK_DIR="$PROJECT_DIR"
+elif [ -d "$(pwd)/.shogun" ]; then
+    WORK_DIR="$(pwd)"
+else
+    WORK_DIR="$SHOGUN_ROOT"
+fi
+
+# プロジェクト共通変数を読み込み
+source "${SHOGUN_ROOT}/scripts/project-env.sh"
+
+LOG_FILE="${LOGS_DIR}/watchdog.log"
 CHECK_INTERVAL=300  # 5分ごとにチェック
-LIMIT_RESET_FILE="$SHOGUN_ROOT/.limit_reset_times"
+LIMIT_RESET_FILE="${SHOGUN_DATA_DIR}/.limit_reset_times"
+PID_FILE="${SHOGUN_DATA_DIR}/watchdog.pid"
+LAST_DASHBOARD_CHECK_FILE="${SHOGUN_DATA_DIR}/.last_dashboard_check"
 
 # ログディレクトリ作成
-mkdir -p "$SHOGUN_ROOT/logs"
+mkdir -p "${LOGS_DIR}"
+
+# PID を保存
+echo $$ > "$PID_FILE"
 
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
@@ -120,18 +146,18 @@ check_limit_reset() {
     log "✅ Limitリセット時刻($reset_info)を過ぎた - 将軍・家老に再開指示"
 
     # 家老に通知（先に通知）
-    if tmux has-session -t multiagent 2>/dev/null; then
-      tmux send-keys -t "multiagent:0.0" "" Enter
+    if tmux has-session -t "${TMUX_MULTIAGENT}" 2>/dev/null; then
+      tmux send-keys -t "${TMUX_MULTIAGENT}:0.0" "" Enter
       sleep 1
-      notify "multiagent:0.0" "Limitがリセットされた。作業再開せよ。目付や各足軽にも再開指示をせよ。"
+      notify "${TMUX_MULTIAGENT}:0.0" "Limitがリセットされた。作業再開せよ。目付や各足軽にも再開指示をせよ。"
     fi
 
     # 将軍に通知
-    if tmux has-session -t shogun 2>/dev/null; then
+    if tmux has-session -t "${TMUX_SHOGUN}" 2>/dev/null; then
       sleep 1
-      tmux send-keys -t "shogun:0.0" "" Enter
+      tmux send-keys -t "${TMUX_SHOGUN}:0.0" "" Enter
       sleep 1
-      notify "shogun:0.0" "Limitがリセットされた。家老にも指示したので家老が動いていなかったら追加指示をすること。"
+      notify "${TMUX_SHOGUN}:0.0" "Limitがリセットされた。家老にも指示したので家老が動いていなかったら追加指示をすること。"
     fi
 
     # 記録ファイルをクリア
@@ -167,17 +193,18 @@ check_idle() {
 
 # 4. dashboard.md更新検知 → 将軍に報告
 check_dashboard_update() {
-  local dashboard="$SHOGUN_ROOT/dashboard.md"
-  local last_check_file="$SHOGUN_ROOT/.last_dashboard_check"
+  local dashboard="${DASHBOARD_PATH}"
+
+  [ ! -f "$dashboard" ] && return 0
 
   # 初回実行時
-  if [ ! -f "$last_check_file" ]; then
-    stat -f %m "$dashboard" > "$last_check_file" 2>/dev/null || stat -c %Y "$dashboard" > "$last_check_file"
+  if [ ! -f "$LAST_DASHBOARD_CHECK_FILE" ]; then
+    stat -f %m "$dashboard" > "$LAST_DASHBOARD_CHECK_FILE" 2>/dev/null || stat -c %Y "$dashboard" > "$LAST_DASHBOARD_CHECK_FILE"
     return 0
   fi
 
   # 前回チェック時のタイムスタンプ
-  local last_mtime=$(cat "$last_check_file")
+  local last_mtime=$(cat "$LAST_DASHBOARD_CHECK_FILE")
   # 現在のタイムスタンプ (macOS/Linux互換)
   local current_mtime=$(stat -f %m "$dashboard" 2>/dev/null || stat -c %Y "$dashboard")
 
@@ -191,12 +218,12 @@ check_dashboard_update() {
     fi
 
     # 将軍が稼働中でアイドルなら起こす
-    if tmux has-session -t shogun 2>/dev/null; then
-      local shogun_output=$(tmux capture-pane -t shogun:0.0 -p 2>/dev/null | tail -5)
+    if tmux has-session -t "${TMUX_SHOGUN}" 2>/dev/null; then
+      local shogun_output=$(tmux capture-pane -t "${TMUX_SHOGUN}:0.0" -p 2>/dev/null | tail -5)
 
       if echo "$shogun_output" | grep -qE "^❯ *$"; then
         log "  → 将軍を起床させる"
-        notify "shogun:0.0" "dashboard.md が更新された。確認せよ。"
+        notify "${TMUX_SHOGUN}:0.0" "dashboard.md が更新された。確認せよ。"
       else
         log "  → 将軍は殿と会話中（起こさない）"
       fi
@@ -205,7 +232,7 @@ check_dashboard_update() {
     fi
 
     # タイムスタンプ更新
-    echo "$current_mtime" > "$last_check_file"
+    echo "$current_mtime" > "$LAST_DASHBOARD_CHECK_FILE"
     return 0
   fi
 
@@ -230,7 +257,7 @@ check_long_thinking() {
 }
 
 # メインループ
-log "🚀 watchdog.sh 起動 (チェック間隔: ${CHECK_INTERVAL}秒)"
+log "🚀 watchdog.sh 起動 (プロジェクト: ${PROJECT_NAME_SAFE}, チェック間隔: ${CHECK_INTERVAL}秒)"
 
 while true; do
   # dashboard.md更新チェック（最優先）
@@ -240,28 +267,28 @@ while true; do
   limit_detected=false
 
   # shogunセッション
-  if tmux has-session -t shogun 2>/dev/null; then
-    check_limit "shogun:0.0" "shogun"
+  if tmux has-session -t "${TMUX_SHOGUN}" 2>/dev/null; then
+    check_limit "${TMUX_SHOGUN}:0.0" "shogun"
     [ $? -eq 0 ] && limit_detected=true
-    check_long_thinking "shogun:0.0" "shogun"
+    check_long_thinking "${TMUX_SHOGUN}:0.0" "shogun"
   fi
 
   # multiagentセッション
-  if tmux has-session -t multiagent 2>/dev/null; then
+  if tmux has-session -t "${TMUX_MULTIAGENT}" 2>/dev/null; then
     # Pane 0: karo
-    check_limit "multiagent:0.0" "karo"
+    check_limit "${TMUX_MULTIAGENT}:0.0" "karo"
     [ $? -eq 0 ] && limit_detected=true
-    check_idle "multiagent:0.0" "karo"
-    check_long_thinking "multiagent:0.0" "karo"
+    check_idle "${TMUX_MULTIAGENT}:0.0" "karo"
+    check_long_thinking "${TMUX_MULTIAGENT}:0.0" "karo"
 
     # Pane 1: metsuke
-    check_limit "multiagent:0.1" "metsuke"
+    check_limit "${TMUX_MULTIAGENT}:0.1" "metsuke"
     [ $? -eq 0 ] && limit_detected=true
 
     # Pane 2-N: ashigaru
     for i in {2..9}; do
-      if tmux list-panes -t multiagent -F '#{pane_index}' 2>/dev/null | grep -q "^$i$"; then
-        check_limit "multiagent:0.$i" "ashigaru$((i-1))"
+      if tmux list-panes -t "${TMUX_MULTIAGENT}" -F '#{pane_index}' 2>/dev/null | grep -q "^$i$"; then
+        check_limit "${TMUX_MULTIAGENT}:0.$i" "ashigaru$((i-1))"
         [ $? -eq 0 ] && limit_detected=true
       fi
     done

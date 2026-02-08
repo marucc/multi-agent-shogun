@@ -4,18 +4,15 @@
 # Agent Teams 版
 #
 # 使用方法:
-#   ./tettai_retreat.sh           # 通常撤退（バックアップあり）
-#   ./tettai_retreat.sh -f        # 強制撤退（バックアップなし）
-#   ./tettai_retreat.sh -h        # ヘルプ表示
+#   ./tettai_retreat.sh                        # 通常撤退（カレントディレクトリの .shogun/ を使用）
+#   ./tettai_retreat.sh --project-dir=/path     # 指定ディレクトリのプロジェクトを撤退
+#   ./tettai_retreat.sh -f                      # 強制撤退（バックアップなし）
+#   ./tettai_retreat.sh -h                      # ヘルプ表示
 
 set -e
 
 # shogun システムのルートディレクトリ
 SHOGUN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Agent Teams データのパス
-TEAM_DIR="$HOME/.claude/teams/shogun-team"
-TASK_DIR="$HOME/.claude/tasks/shogun-team"
 
 # 色付きログ関数（戦国風）
 log_info() {
@@ -34,11 +31,16 @@ log_retreat() {
 # オプション解析
 # ═══════════════════════════════════════════════════════════════════════════════
 FORCE_MODE=false
+PROJECT_DIR=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         -f|--force)
             FORCE_MODE=true
+            shift
+            ;;
+        --project-dir=*)
+            PROJECT_DIR="${1#*=}"
             shift
             ;;
         -h|--help)
@@ -48,17 +50,19 @@ while [[ $# -gt 0 ]]; do
             echo "使用方法: ./tettai_retreat.sh [オプション]"
             echo ""
             echo "オプション:"
-            echo "  -f, --force   強制撤退（バックアップなし）"
-            echo "  -h, --help    このヘルプを表示"
+            echo "  -f, --force              強制撤退（バックアップなし）"
+            echo "  --project-dir=<path>     撤退対象のプロジェクトディレクトリを指定"
+            echo "  -h, --help               このヘルプを表示"
             echo ""
             echo "例:"
-            echo "  ./tettai_retreat.sh      # 通常撤退（バックアップ後に終了）"
-            echo "  ./tettai_retreat.sh -f   # 強制撤退（即座に終了）"
+            echo "  ./tettai_retreat.sh                          # カレントディレクトリのプロジェクトを撤退"
+            echo "  ./tettai_retreat.sh --project-dir=/path/to/project"
+            echo "  ./tettai_retreat.sh -f                       # 強制撤退（即座に終了）"
             echo ""
-            echo "以下を終了・クリーンアップします:"
-            echo "  tmux セッション: shogun, multiagent"
-            echo "  Agent Teams データ: ~/.claude/teams/shogun-team/"
-            echo "                      ~/.claude/tasks/shogun-team/"
+            echo "WORK_DIR 発見ロジック:"
+            echo "  1. \$(pwd)/.shogun が存在すればカレントディレクトリ"
+            echo "  2. --project-dir= で指定されたディレクトリ"
+            echo "  3. フォールバック: SHOGUN_ROOT"
             echo ""
             exit 0
             ;;
@@ -69,6 +73,20 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# WORK_DIR 発見ロジック
+# ═══════════════════════════════════════════════════════════════════════════════
+if [ -n "$PROJECT_DIR" ] && [ -d "${PROJECT_DIR}/.shogun" ]; then
+    WORK_DIR="$PROJECT_DIR"
+elif [ -d "$(pwd)/.shogun" ]; then
+    WORK_DIR="$(pwd)"
+else
+    WORK_DIR="$SHOGUN_ROOT"
+fi
+
+# プロジェクト共通変数を読み込み
+source "${SHOGUN_ROOT}/scripts/project-env.sh"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 撤退バナー表示
@@ -92,6 +110,9 @@ show_retreat_banner() {
 # バナー表示
 show_retreat_banner
 
+log_info "プロジェクト: ${PROJECT_NAME_SAFE} (${WORK_DIR})"
+echo ""
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # 存在確認（tmux セッション + Agent Teams データ）
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -99,11 +120,11 @@ SHOGUN_EXISTS=false
 MULTIAGENT_EXISTS=false
 TEAM_DATA_EXISTS=false
 
-if tmux has-session -t shogun 2>/dev/null; then
+if tmux has-session -t "${TMUX_SHOGUN}" 2>/dev/null; then
     SHOGUN_EXISTS=true
 fi
 
-if tmux has-session -t multiagent 2>/dev/null; then
+if tmux has-session -t "${TMUX_MULTIAGENT}" 2>/dev/null; then
     MULTIAGENT_EXISTS=true
 fi
 
@@ -119,21 +140,21 @@ fi
 
 # 現在の状態を表示
 log_info "現在の陣容:"
-[ "$SHOGUN_EXISTS" = true ] && log_info "  ├─ tmux: shogun セッション ... 稼働中"
-[ "$MULTIAGENT_EXISTS" = true ] && log_info "  ├─ tmux: multiagent セッション ... 稼働中"
-[ "$TEAM_DATA_EXISTS" = true ] && log_info "  ├─ Agent Teams: チームデータ ... 存在"
+[ "$SHOGUN_EXISTS" = true ] && log_info "  ├─ tmux: ${TMUX_SHOGUN} セッション ... 稼働中"
+[ "$MULTIAGENT_EXISTS" = true ] && log_info "  ├─ tmux: ${TMUX_MULTIAGENT} セッション ... 稼働中"
+[ "$TEAM_DATA_EXISTS" = true ] && log_info "  ├─ Agent Teams: チームデータ (${TEAM_NAME}) ... 存在"
 echo ""
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # バックアップ（強制モードでなければ）
 # ═══════════════════════════════════════════════════════════════════════════════
 if [ "$FORCE_MODE" = false ]; then
-    BACKUP_DIR="${SHOGUN_ROOT}/logs/backup_$(date '+%Y%m%d_%H%M%S')"
+    BACKUP_DIR="${LOGS_DIR}/backup_$(date '+%Y%m%d_%H%M%S')"
     NEED_BACKUP=false
 
     # dashboard.md のバックアップ判定
-    if [ -f "${SHOGUN_ROOT}/dashboard.md" ]; then
-        if grep -q "cmd_" "${SHOGUN_ROOT}/dashboard.md" 2>/dev/null; then
+    if [ -f "${DASHBOARD_PATH}" ]; then
+        if grep -q "cmd_" "${DASHBOARD_PATH}" 2>/dev/null; then
             NEED_BACKUP=true
         fi
     fi
@@ -148,14 +169,14 @@ if [ "$FORCE_MODE" = false ]; then
         mkdir -p "$BACKUP_DIR" || true
 
         # dashboard.md のバックアップ
-        if [ -f "${SHOGUN_ROOT}/dashboard.md" ]; then
-            cp "${SHOGUN_ROOT}/dashboard.md" "$BACKUP_DIR/" 2>/dev/null || true
+        if [ -f "${DASHBOARD_PATH}" ]; then
+            cp "${DASHBOARD_PATH}" "$BACKUP_DIR/" 2>/dev/null || true
             log_success "  ├─ dashboard.md バックアップ完了"
         fi
 
         # Agent Teams タスクデータのバックアップ
         if [ -d "$TASK_DIR" ]; then
-            cp -r "$TASK_DIR" "$BACKUP_DIR/tasks-shogun-team" 2>/dev/null || true
+            cp -r "$TASK_DIR" "$BACKUP_DIR/tasks-${TEAM_NAME}" 2>/dev/null || true
             log_success "  ├─ Agent Teams タスクデータ バックアップ完了"
         fi
 
@@ -168,7 +189,7 @@ fi
 # 未完了タスク保存（-f モードでも実行）
 # ═══════════════════════════════════════════════════════════════════════════════
 if [ -d "$TASK_DIR" ]; then
-    PENDING_YAML="${SHOGUN_ROOT}/status/pending_tasks.yaml"
+    PENDING_YAML="${STATUS_DIR}/pending_tasks.yaml"
     PENDING_COUNT=0
     PENDING_ENTRIES=""
 
@@ -203,7 +224,7 @@ $(echo "$task_description" | sed 's/^/      /')
     done
 
     if [ "$PENDING_COUNT" -gt 0 ]; then
-        mkdir -p "${SHOGUN_ROOT}/status"
+        mkdir -p "${STATUS_DIR}"
         SAVED_AT=$(date "+%Y-%m-%d %H:%M")
         {
             echo "# 未完了タスク一覧（撤退時自動保存）"
@@ -230,14 +251,14 @@ echo ""
 # STEP 1: tmux セッション終了（Claude Code プロセスも終了する）
 if [ "$MULTIAGENT_EXISTS" = true ]; then
     log_retreat "  └─ 家老・目付・足軽の陣を撤収中..."
-    tmux kill-session -t multiagent 2>/dev/null
-    log_success "     └─ multiagent陣、撤収完了"
+    tmux kill-session -t "${TMUX_MULTIAGENT}" 2>/dev/null
+    log_success "     └─ ${TMUX_MULTIAGENT} 陣、撤収完了"
 fi
 
 if [ "$SHOGUN_EXISTS" = true ]; then
     log_retreat "  └─ 将軍の本陣を撤収中..."
-    tmux kill-session -t shogun 2>/dev/null
-    log_success "     └─ shogun本陣、撤収完了"
+    tmux kill-session -t "${TMUX_SHOGUN}" 2>/dev/null
+    log_success "     └─ ${TMUX_SHOGUN} 本陣、撤収完了"
 fi
 
 # STEP 2: Agent Teams チームデータのクリーンアップ
@@ -246,12 +267,12 @@ if [ "$TEAM_DATA_EXISTS" = true ]; then
 
     if [ -d "$TEAM_DIR" ]; then
         trash "$TEAM_DIR" 2>/dev/null || true
-        log_success "     └─ チーム設定（teams/shogun-team）撤収完了"
+        log_success "     └─ チーム設定（teams/${TEAM_NAME}）撤収完了"
     fi
 
     if [ -d "$TASK_DIR" ]; then
         trash "$TASK_DIR" 2>/dev/null || true
-        log_success "     └─ タスクデータ（tasks/shogun-team）撤収完了"
+        log_success "     └─ タスクデータ（tasks/${TEAM_NAME}）撤収完了"
     fi
 fi
 
@@ -266,7 +287,8 @@ echo -e "\033[1;36m  ╚══════════════════�
 echo ""
 echo "  次回出陣するには:"
 echo "  ┌──────────────────────────────────────────────────────────┐"
-echo "  │  ./shutsujin_departure.sh                                │"
+echo "  │  cd ${WORK_DIR} && ${SHOGUN_ROOT}/shutsujin_departure.sh │"
+echo "  │  または: .shogun/bin/shutsujin.sh                        │"
 echo "  └──────────────────────────────────────────────────────────┘"
 echo ""
 echo "  ════════════════════════════════════════════════════════════"

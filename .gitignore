@@ -32,6 +32,9 @@ status/
 config/settings.yaml
 logs/
 
-# Watchdog runtime files
+# Project-local runtime data (generated per work directory)
+.shogun/
+
+# Legacy watchdog runtime files (now in .shogun/)
 .last_dashboard_check
 .limit_reset_times

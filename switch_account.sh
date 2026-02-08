@@ -3,6 +3,16 @@
 
 SHOGUN_ROOT="$(cd "$(dirname "$0")" && pwd)"
 
+# WORK_DIR 発見ロジック
+if [ -d "$(pwd)/.shogun" ]; then
+    WORK_DIR="$(pwd)"
+else
+    WORK_DIR="$SHOGUN_ROOT"
+fi
+
+# プロジェクト共通変数を読み込み
+source "${SHOGUN_ROOT}/scripts/project-env.sh"
+
 echo "=========================================="
 echo "  Claude アカウント切り替え"
 echo "=========================================="
@@ -10,14 +20,14 @@ echo ""
 
 # 1. 現在のセッション状態確認
 echo "📊 現在のセッション状態:"
-tmux has-session -t shogun 2>/dev/null && echo "  - shogun: 稼働中" || echo "  - shogun: 停止中"
-tmux has-session -t multiagent 2>/dev/null && echo "  - multiagent: 稼働中" || echo "  - multiagent: 停止中"
+tmux has-session -t "${TMUX_SHOGUN}" 2>/dev/null && echo "  - ${TMUX_SHOGUN}: 稼働中" || echo "  - ${TMUX_SHOGUN}: 停止中"
+tmux has-session -t "${TMUX_MULTIAGENT}" 2>/dev/null && echo "  - ${TMUX_MULTIAGENT}: 稼働中" || echo "  - ${TMUX_MULTIAGENT}: 停止中"
 echo ""
 
 # 2. dashboard.md 最終更新確認
-if [ -f "$SHOGUN_ROOT/dashboard.md" ]; then
+if [ -f "${DASHBOARD_PATH}" ]; then
   echo "📋 dashboard.md 最終更新:"
-  head -2 "$SHOGUN_ROOT/dashboard.md" | tail -1
+  head -2 "${DASHBOARD_PATH}" | tail -1
   echo ""
 fi
 
@@ -34,11 +44,15 @@ fi
 # 4. セッション停止
 echo ""
 echo "🛑 セッションを停止中..."
-tmux kill-session -t shogun 2>/dev/null && echo "  - shogun 停止完了"
-tmux kill-session -t multiagent 2>/dev/null && echo "  - multiagent 停止完了"
+tmux kill-session -t "${TMUX_SHOGUN}" 2>/dev/null && echo "  - ${TMUX_SHOGUN} 停止完了"
+tmux kill-session -t "${TMUX_MULTIAGENT}" 2>/dev/null && echo "  - ${TMUX_MULTIAGENT} 停止完了"
 
 # watchdog停止
-pkill -f watchdog.sh 2>/dev/null && echo "  - watchdog 停止完了"
+if [ -f "${SHOGUN_DATA_DIR}/watchdog.pid" ]; then
+    kill "$(cat "${SHOGUN_DATA_DIR}/watchdog.pid")" 2>/dev/null && echo "  - watchdog 停止完了"
+else
+    pkill -f watchdog.sh 2>/dev/null && echo "  - watchdog 停止完了"
+fi
 
 echo ""
 
@@ -77,36 +91,13 @@ read -r restart_answer
 if [ "$restart_answer" = "y" ]; then
   echo ""
   echo "起動中..."
-
-  # shogun起動
-  cd "$SHOGUN_ROOT" || exit 1
-  ./shogun.sh &
-  SHOGUN_PID=$!
-  sleep 2
-
-  # multiagent起動
-  ./multiagent.sh &
-  MULTIAGENT_PID=$!
-  sleep 2
-
-  # watchdog起動
-  ./watchdog.sh &
-  WATCHDOG_PID=$!
-
-  echo ""
-  echo "✅ 起動完了"
-  echo "  - shogun: PID $SHOGUN_PID"
-  echo "  - multiagent: PID $MULTIAGENT_PID"
-  echo "  - watchdog: PID $WATCHDOG_PID"
-  echo ""
-  echo "📊 dashboard確認: cat dashboard.md"
-  echo "📋 ログ確認: tail -f logs/watchdog.log"
+  cd "$WORK_DIR" || exit 1
+  "${SHOGUN_ROOT}/shutsujin_departure.sh"
 else
   echo ""
   echo "手動で起動する場合:"
-  echo "  ./shogun.sh &"
-  echo "  ./multiagent.sh &"
-  echo "  ./watchdog.sh &"
+  echo "  cd ${WORK_DIR} && ${SHOGUN_ROOT}/shutsujin_departure.sh"
+  echo "  または: .shogun/bin/shutsujin.sh"
 fi
 
 echo ""

@@ -4,7 +4,7 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #
 # shogun システムで Claude Code を起動する際はこのスクリプトを使う。
-# 環境変数 SHOGUN_ROOT と CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS が設定される。
+# 環境変数 SHOGUN_ROOT, WORK_DIR, SHOGUN_DATA_DIR が設定される。
 #
 # 使い方:
 #   claude-shogun [claude の引数...]
@@ -18,6 +18,11 @@
 # このスクリプト自身の場所から SHOGUN_ROOT を動的に取得
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 export SHOGUN_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# WORK_DIR と SHOGUN_DATA_DIR は呼び出し元（shutsujin_departure.sh）から
+# 環境変数として渡される。未設定の場合はカレントディレクトリを使用。
+export WORK_DIR="${WORK_DIR:-$(pwd)}"
+export SHOGUN_DATA_DIR="${SHOGUN_DATA_DIR:-${WORK_DIR}/.shogun}"
 
 # Agent Teams 有効化（tmux モード）
 export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1

@@ -1,7 +1,7 @@
 # multi-agent-shogun システム構成
 
-> **Version**: 2.0.0
-> **Last Updated**: 2026-02-06
+> **Version**: 2.1.0
+> **Last Updated**: 2026-02-08
 
 ## 概要
 multi-agent-shogunは、Claude Code の **Agent Teams** を使ったマルチエージェント並列開発基盤である。
@@ -112,7 +112,7 @@ multi-agent-shogunは、Claude Code の **Agent Teams** を使ったマルチエ
 | タスク割当 | `TaskUpdate(taskId="...", owner="名前")` |
 | タスク確認 | `TaskList` / `TaskGet(taskId="...")` |
 | タスク完了 | `TaskUpdate(taskId="...", status="completed")` |
-| チーム作成 | `TeamCreate(team_name="shogun-team")` |
+| チーム作成 | `TeamCreate(team_name="shogun-team-<project>")` |
 
 ### エージェント名一覧
 
@@ -143,16 +143,41 @@ Agent Teams ではメッセージは自動配信される。
 
 ### ファイル構成
 ```
-config/projects.yaml              # プロジェクト一覧
-status/master_status.yaml         # 全体進捗
-dashboard.md                      # 人間用ダッシュボード
-~/.claude/teams/                  # Agent Teams チーム設定（自動管理）
-~/.claude/tasks/                  # Agent Teams タスクリスト（自動管理）
+SHOGUN_ROOT/                               # システムファイル
+├── instructions/                          # エージェント指示書
+├── config/                                # 設定ファイル
+├── scripts/
+│   ├── claude-shogun                      # Claude Code ラッパー
+│   ├── notify.sh                          # tmux 通知ラッパー
+│   └── project-env.sh                     # 共通変数定義
+├── CLAUDE.md
+├── shutsujin_departure.sh                 # 出陣スクリプト
+├── tettai_retreat.sh                      # 撤退スクリプト
+└── watchdog.sh                            # 監視スクリプト
+
+WORK_DIR/.shogun/                          # プロジェクト固有データ（実行時生成）
+├── project.env                            # メタデータ
+├── dashboard.md                           # ダッシュボード
+├── bin/
+│   ├── shutsujin.sh                       # 再出陣ラッパー
+│   ├── tettai.sh                          # 撤退ラッパー
+│   ├── shogun.sh                          # tmux attach
+│   └── multiagent.sh                      # tmux attach
+├── status/
+│   └── pending_tasks.yaml                 # 撤退時の未完了タスク
+└── logs/
+    └── backup_*/                          # バックアップ
+
+~/.claude/teams/shogun-team-<project>/     # Agent Teams チーム設定（自動管理）
+~/.claude/tasks/shogun-team-<project>/     # Agent Teams タスクリスト（自動管理）
 ```
 
 ## Agent Teams セッション構成
 
 Agent Teams が tmux セッションを自動管理する。
+tmux セッション名とチーム名はプロジェクトごとに一意:
+- tmux: `shogun-<project>`, `multiagent-<project>`
+- Agent Teams チーム: `shogun-team-<project>`
 
 ### チーム構成
 - **shogun**: team_leader（将軍）
@@ -162,11 +187,19 @@ Agent Teams が tmux セッションを自動管理する。
 
 ### 起動方法
 ```bash
-# 出陣スクリプトで起動
-./shutsujin_departure.sh
+# 作業ディレクトリで出陣スクリプトを実行（.shogun/ が作成される）
+cd /path/to/your/project
+/path/to/multi-agent-shogun/shutsujin_departure.sh
 
-# または手動で将軍を起動（Agent Teams がチームを構成）
-./scripts/claude-shogun
+# 再出陣（.shogun/bin/ のラッパーを使用）
+.shogun/bin/shutsujin.sh
+
+# アタッチ
+.shogun/bin/shogun.sh      # 将軍セッション
+.shogun/bin/multiagent.sh  # 配下セッション
+
+# 撤退
+.shogun/bin/tettai.sh
 ```
 
 ## 設定ファイル
@@ -233,6 +266,7 @@ MCPツールは遅延ロード方式。使用前に必ず `ToolSearch` で検索
 
 ### 1. ダッシュボード更新
 - **dashboard.md の更新は家老の責任**
+- ダッシュボードの場所: `${SHOGUN_DATA_DIR}/dashboard.md`（= `WORK_DIR/.shogun/dashboard.md`）
 - 将軍は家老に指示を出し、家老が更新する
 - 将軍は dashboard.md を読んで状況を把握する
 

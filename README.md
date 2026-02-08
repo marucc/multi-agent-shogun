@@ -103,11 +103,11 @@ Right-click and select **"Run as administrator"** (required if WSL2 is not yet i
 
 #### 📅 Daily Startup (After First Install)
 
-Open **Ubuntu terminal** (WSL) and run:
+Open **Ubuntu terminal** (WSL) and run from your **project directory**:
 
 ```bash
-cd /mnt/c/tools/multi-agent-shogun
-./shutsujin_departure.sh
+cd /mnt/c/your-project
+/mnt/c/tools/multi-agent-shogun/shutsujin_departure.sh
 ```
 
 #### 🔐 First-Time Authentication (One Time Only)
@@ -141,8 +141,8 @@ chmod +x *.sh
 ### Daily Startup
 
 ```bash
-cd ~/multi-agent-shogun
-./shutsujin_departure.sh
+cd ~/your-project
+~/multi-agent-shogun/shutsujin_departure.sh
 ```
 
 </details>
@@ -181,7 +181,7 @@ Then restart your computer and run `install.bat` again.
 |--------|---------|-------------|
 | `install.bat` | Windows: First-time setup (runs first_setup.sh via WSL) | First time only |
 | `first_setup.sh` | Installs tmux, Node.js, Claude Code CLI + configures Memory MCP | First time only |
-| `shutsujin_departure.sh` | Creates tmux sessions + starts Claude Code + loads instructions | Every day |
+| `shutsujin_departure.sh` | Creates `.shogun/` + tmux sessions + starts Claude Code | Every day (run from project dir) |
 
 ### What `install.bat` does automatically:
 - ✅ Checks if WSL2 is installed
@@ -191,7 +191,8 @@ Then restart your computer and run `install.bat` again.
 - ✅ Configures Memory MCP server (for cross-session memory)
 
 ### What `shutsujin_departure.sh` does:
-- ✅ Creates tmux sessions (shogun + multiagent)
+- ✅ Creates `.shogun/` directory in your project (dashboard, logs, wrapper scripts)
+- ✅ Creates tmux sessions (`shogun-<project>` + `multiagent-<project>`)
 - ✅ Launches Claude Code with Agent Teams enabled
 - ✅ Automatically loads instruction files for each agent
 - ✅ Sets up the team hierarchy (Shogun → Karo → Ashigaru)
@@ -230,9 +231,11 @@ After running either option, AI agents will start automatically:
 | 🔍 Metsuke | Reviewer — quality assurance | 1 |
 | ⚔️ Ashigaru | Workers — execute tasks in parallel | Configurable (default: 3) |
 
-You'll see tmux sessions created:
-- `shogun` — Connect here to give commands
-- `multiagent` — Workers running in background
+You'll see tmux sessions created (names include your project name):
+- `shogun-<project>` — Connect here to give commands
+- `multiagent-<project>` — Workers running in background
+
+Wrapper scripts are generated in `.shogun/bin/` for easy access.
 
 ---
 
@@ -245,7 +248,7 @@ After running `shutsujin_departure.sh`, all agents automatically load their inst
 Open a new terminal and connect to the Shogun:
 
 ```bash
-tmux attach-session -t shogun
+.shogun/bin/shogun.sh
 ```
 
 ### Step 2: Give Your First Order
@@ -265,7 +268,7 @@ Meanwhile, the Karo distributes the work to Ashigaru workers who execute in para
 
 ### Step 3: Check Progress
 
-Open `dashboard.md` in your editor to see real-time status:
+Open `.shogun/dashboard.md` in your editor to see real-time status:
 
 ```markdown
 ## In Progress
@@ -502,9 +505,11 @@ language: en   # Japanese + English translation
 │                                                                     │
 │  shutsujin_departure.sh                                             │
 │      │                                                              │
+│      ├──▶ Create .shogun/ directory in project                        │
+│      │                                                              │
 │      ├──▶ Create tmux sessions                                      │
-│      │         • "shogun" session (Shogun agent)                    │
-│      │         • "multiagent" session (Karo + Metsuke + Ashigaru)   │
+│      │         • "shogun-<project>" session (Shogun agent)          │
+│      │         • "multiagent-<project>" session (Karo+Metsuke+Ashi) │
 │      │                                                              │
 │      └──▶ Launch Claude Code with Agent Teams                       │
 │                                                                     │
@@ -517,20 +522,14 @@ language: en   # Japanese + English translation
 <summary><b>shutsujin_departure.sh Options</b> (Click to expand)</summary>
 
 ```bash
-# Default: Full startup (tmux sessions + Claude Code launch)
-./shutsujin_departure.sh
+# Run from your project directory
+cd /path/to/your/project
 
-# Session setup only (without launching Claude Code)
-./shutsujin_departure.sh -s
-./shutsujin_departure.sh --setup-only
-
-# Full startup + open Windows Terminal tabs
-./shutsujin_departure.sh -t
-./shutsujin_departure.sh --terminal
+# Default: Full startup (.shogun/ creation + tmux sessions + Claude Code launch)
+/path/to/multi-agent-shogun/shutsujin_departure.sh
 
 # Show help
-./shutsujin_departure.sh -h
-./shutsujin_departure.sh --help
+/path/to/multi-agent-shogun/shutsujin_departure.sh -h
 ```
 
 </details>
@@ -540,27 +539,19 @@ language: en   # Japanese + English translation
 
 **Normal Daily Usage:**
 ```bash
-./shutsujin_departure.sh          # Start everything
-tmux attach-session -t shogun     # Connect to give commands
+cd /path/to/your/project
+/path/to/multi-agent-shogun/shutsujin_departure.sh   # Start everything
+.shogun/bin/shogun.sh                                 # Connect to give commands
 ```
 
-**Debug Mode (manual control):**
+**Re-launch (after retreat):**
 ```bash
-./shutsujin_departure.sh -s       # Create sessions only
-
-# Manually start Claude Code on specific agents
-./scripts/notify.sh shogun:0 'claude --dangerously-skip-permissions'
-./scripts/notify.sh multiagent:0.0 'claude --dangerously-skip-permissions'
+.shogun/bin/shutsujin.sh          # Re-deploy from project directory
 ```
 
-**Restart After Crash:**
+**Retreat (shutdown):**
 ```bash
-# Kill existing sessions
-tmux kill-session -t shogun
-tmux kill-session -t multiagent
-
-# Start fresh
-./shutsujin_departure.sh
+.shogun/bin/tettai.sh             # Graceful shutdown with backup
 ```
 
 </details>
@@ -573,13 +564,15 @@ tmux kill-session -t multiagent
 <summary><b>Click to expand file structure</b></summary>
 
 ```
-multi-agent-shogun/
+multi-agent-shogun/                      # SHOGUN_ROOT (system files)
 │
-│  ┌─────────────────── SETUP SCRIPTS ───────────────────┐
+│  ┌─────────────────── SCRIPTS ─────────────────────────┐
 ├── install.bat               # Windows: First-time setup
 ├── first_setup.sh            # Ubuntu/Mac: First-time setup
-├── shutsujin_departure.sh    # Daily startup
+├── shutsujin_departure.sh    # Deploy (run from project dir)
 ├── tettai_retreat.sh         # Shutdown / retreat
+├── watchdog.sh               # Monitoring daemon
+├── switch_account.sh         # Account switching
 │  └────────────────────────────────────────────────────┘
 │
 ├── instructions/             # Agent instruction files
@@ -590,15 +583,28 @@ multi-agent-shogun/
 │
 ├── scripts/
 │   ├── claude-shogun         # Claude Code launcher wrapper
-│   └── notify.sh             # tmux send-keys wrapper
+│   ├── notify.sh             # tmux send-keys wrapper
+│   └── project-env.sh        # Shared variable definitions
 │
 ├── config/
 │   └── settings.yaml         # Language, agent count settings
 │
 ├── context/                  # Project context files
 ├── memory/                   # Memory MCP storage
-├── dashboard.md              # Real-time status overview
 └── CLAUDE.md                 # Project context for Claude
+
+your-project/.shogun/                    # Generated per project
+├── project.env               # Project metadata
+├── dashboard.md              # Real-time status overview
+├── bin/
+│   ├── shutsujin.sh          # Re-deploy wrapper
+│   ├── tettai.sh             # Retreat wrapper
+│   ├── shogun.sh             # Attach to shogun session
+│   └── multiagent.sh         # Attach to multiagent session
+├── status/
+│   └── pending_tasks.yaml    # Saved on retreat
+└── logs/
+    └── backup_*/             # Backups
 ```
 
 </details>
@@ -639,8 +645,8 @@ claude --dangerously-skip-permissions --system-prompt "..."
 
 Check the worker's pane:
 ```bash
-tmux attach-session -t multiagent
-# Use Ctrl+B then number to switch panes
+.shogun/bin/multiagent.sh
+# Use Ctrl+B then arrow keys to switch panes
 ```
 
 </details>
@@ -651,12 +657,12 @@ tmux attach-session -t multiagent
 
 | Command | Description |
 |---------|-------------|
-| `tmux attach -t shogun` | Connect to Shogun |
-| `tmux attach -t multiagent` | Connect to workers |
+| `.shogun/bin/shogun.sh` | Connect to Shogun |
+| `.shogun/bin/multiagent.sh` | Connect to workers |
+| `.shogun/bin/tettai.sh` | Graceful shutdown |
 | `Ctrl+B` then `0-8` | Switch between panes |
 | `Ctrl+B` then `d` | Detach (leave running) |
-| `tmux kill-session -t shogun` | Stop Shogun session |
-| `tmux kill-session -t multiagent` | Stop worker sessions |
+| `tmux ls` | List all sessions |
 
 ---
 

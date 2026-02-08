@@ -299,13 +299,9 @@ log_step "STEP 5: ディレクトリ構造作成"
 
 # 必要なディレクトリ一覧
 DIRECTORIES=(
-    "queue/tasks"
-    "queue/reports"
     "config"
-    "status"
     "instructions"
-    "logs"
-    "demo_output"
+    "scripts"
     "skills"
     "memory"
 )
@@ -392,94 +388,13 @@ fi
 RESULTS+=("設定ファイル: OK")
 
 # ============================================================
-# STEP 7: 足軽用タスク・レポートファイル初期化
+# STEP 7: (スキップ - Agent Teams 移行済み)
 # ============================================================
-log_step "STEP 7: キューファイル初期化"
-
-# 足軽数を設定ファイルから読み込み（デフォルト: 3）
-ASHIGARU_COUNT=3
-if [ -f "$SHOGUN_ROOT/config/settings.yaml" ]; then
-    ASHIGARU_COUNT=$(grep "^ashigaru_count:" "$SHOGUN_ROOT/config/settings.yaml" 2>/dev/null | awk '{print $2}' || echo "3")
-    ASHIGARU_COUNT=${ASHIGARU_COUNT:-3}
-fi
-log_info "足軽数: $ASHIGARU_COUNT"
-
-# 足軽用タスクファイル作成
-for i in $(seq 1 $ASHIGARU_COUNT); do
-    TASK_FILE="$SHOGUN_ROOT/queue/tasks/ashigaru${i}.yaml"
-    if [ ! -f "$TASK_FILE" ]; then
-        cat > "$TASK_FILE" << EOF
-# 足軽${i}専用タスクファイル
-task:
-  task_id: null
-  parent_cmd: null
-  description: null
-  target_path: null
-  status: idle
-  timestamp: ""
-EOF
-    fi
-done
-log_info "足軽タスクファイル (1-$ASHIGARU_COUNT) を確認/作成しました"
-
-# 足軽用レポートファイル作成
-for i in $(seq 1 $ASHIGARU_COUNT); do
-    REPORT_FILE="$SHOGUN_ROOT/queue/reports/ashigaru${i}_report.yaml"
-    if [ ! -f "$REPORT_FILE" ]; then
-        cat > "$REPORT_FILE" << EOF
-worker_id: ashigaru${i}
-task_id: null
-timestamp: ""
-status: idle
-result: null
-EOF
-    fi
-done
-log_info "足軽レポートファイル (1-$ASHIGARU_COUNT) を確認/作成しました"
-
-# 目付用タスクファイル作成
-METSUKE_TASK_FILE="$SHOGUN_ROOT/queue/tasks/metsuke.yaml"
-if [ ! -f "$METSUKE_TASK_FILE" ]; then
-    cat > "$METSUKE_TASK_FILE" << EOF
-# 目付専用タスクファイル
-# 家老（karo）が目付（metsuke）に検証を依頼する際に使用
-
-task:
-  task_id: null
-  parent_cmd: null
-  description: null
-  check_targets: []  # チェック対象のashigaru報告ファイルリスト（例: ["queue/reports/ashigaru1_report.yaml"]）
-  status: idle  # idle | assigned | checking | done
-  timestamp: ""
-EOF
-    log_info "目付タスクファイルを作成しました"
-else
-    log_info "目付タスクファイルは既に存在します"
-fi
-
-# 目付用レポートファイル作成
-METSUKE_REPORT_FILE="$SHOGUN_ROOT/queue/reports/metsuke_report.yaml"
-if [ ! -f "$METSUKE_REPORT_FILE" ]; then
-    cat > "$METSUKE_REPORT_FILE" << EOF
-# 目付の報告ファイル
-# 目付（metsuke）が家老（karo）に検証結果を報告する際に使用
-
-worker_id: metsuke
-task_id: null
-timestamp: ""
-status: idle  # idle | checking | done
-result:
-  summary: null
-  check_results: []  # 4項目のチェック結果（code_quality, instruction_consistency, asset_consistency, completeness）
-  issues: []  # 発見した問題のリスト
-  action: null  # approved | needs_rework | needs_clarification
-EOF
-    log_info "目付レポートファイルを作成しました"
-else
-    log_info "目付レポートファイルは既に存在します"
-fi
-
-RESULTS+=("キューファイル: OK")
+# 旧キューファイル初期化は Agent Teams 移行により不要。
+# タスク管理は Agent Teams の TaskCreate/TaskList で行う。
+log_step "STEP 7: Agent Teams 確認"
+log_info "Agent Teams 方式のため、旧キューファイル初期化はスキップ"
+RESULTS+=("Agent Teams: OK (キューファイル不要)")
 
 # ============================================================
 # STEP 8: スクリプト実行権限付与

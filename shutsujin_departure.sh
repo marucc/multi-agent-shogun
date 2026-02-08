@@ -15,6 +15,9 @@ WORK_DIR="$(pwd)"
 # shogun システムのルートディレクトリ（このスクリプトの場所）
 SHOGUN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# プロジェクト共通変数を読み込み
+source "${SHOGUN_ROOT}/scripts/project-env.sh"
+
 # 言語設定を読み取り（デフォルト: ja）
 LANG_SETTING="ja"
 if [ -f "${SHOGUN_ROOT}/config/settings.yaml" ]; then
@@ -58,12 +61,12 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "例:"
             echo "  ./shutsujin_departure.sh      # tmux セッション構築 + 将軍起動"
-            echo "  ./shogun.sh                    # 将軍にアタッチ"
-            echo "  ./multiagent.sh                # 配下にアタッチ"
+            echo "  .shogun/bin/shogun.sh          # 将軍にアタッチ"
+            echo "  .shogun/bin/multiagent.sh      # 配下にアタッチ"
             echo ""
             echo "2つの tmux セッションを構築します:"
-            echo "  shogun     - 将軍（Claude Code）"
-            echo "  multiagent - 家老・目付・足軽（Agent Teams が自動配備）"
+            echo "  ${TMUX_SHOGUN}     - 将軍（Claude Code）"
+            echo "  ${TMUX_MULTIAGENT} - 家老・目付・足軽（Agent Teams が自動配備）"
             echo ""
             exit 0
             ;;
@@ -166,33 +169,94 @@ show_battle_cry
 
 echo -e "  \033[1;33m天下布武！出陣準備を開始いたす\033[0m"
 echo ""
+log_info "作業ディレクトリ: ${WORK_DIR}"
+log_info "プロジェクト名: ${PROJECT_NAME_SAFE}"
+echo ""
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# STEP 1: 前回記録のバックアップ（内容がある場合のみ）
+# STEP 1: .shogun/ ディレクトリ構造を作成
 # ═══════════════════════════════════════════════════════════════════════════════
-BACKUP_DIR="${SHOGUN_ROOT}/logs/backup_$(date '+%Y%m%d_%H%M%S')"
+log_info "📁 .shogun/ ディレクトリ構造を構築中..."
+
+mkdir -p "${BIN_DIR}"
+mkdir -p "${STATUS_DIR}"
+mkdir -p "${LOGS_DIR}"
+
+log_success "  └─ ${SHOGUN_DATA_DIR}/ 構築完了"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# STEP 2: project.env 生成
+# ═══════════════════════════════════════════════════════════════════════════════
+cat > "${SHOGUN_DATA_DIR}/project.env" << EOF
+# multi-agent-shogun プロジェクトメタデータ
+# Generated: $(date "+%Y-%m-%d %H:%M:%S")
+WORK_DIR="${WORK_DIR}"
+SHOGUN_ROOT="${SHOGUN_ROOT}"
+PROJECT_NAME_SAFE="${PROJECT_NAME_SAFE}"
+TMUX_SHOGUN="${TMUX_SHOGUN}"
+TMUX_MULTIAGENT="${TMUX_MULTIAGENT}"
+TEAM_NAME="${TEAM_NAME}"
+EOF
+
+log_success "  └─ project.env 生成完了"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# STEP 3: bin/ ラッパースクリプト生成
+# ═══════════════════════════════════════════════════════════════════════════════
+cat > "${BIN_DIR}/shutsujin.sh" << EOF
+#!/bin/sh
+# 再出陣ラッパー
+cd "${WORK_DIR}" && "${SHOGUN_ROOT}/shutsujin_departure.sh"
+EOF
+
+cat > "${BIN_DIR}/tettai.sh" << EOF
+#!/bin/sh
+# 撤退ラッパー
+cd "${WORK_DIR}" && "${SHOGUN_ROOT}/tettai_retreat.sh"
+EOF
+
+cat > "${BIN_DIR}/shogun.sh" << EOF
+#!/bin/sh
+# 将軍セッションにアタッチ
+tmux attach-session -t "${TMUX_SHOGUN}"
+EOF
+
+cat > "${BIN_DIR}/multiagent.sh" << EOF
+#!/bin/sh
+# 配下セッションにアタッチ
+tmux attach-session -t "${TMUX_MULTIAGENT}"
+EOF
+
+chmod +x "${BIN_DIR}"/*.sh
+log_success "  └─ bin/ ラッパースクリプト生成完了"
+echo ""
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# STEP 4: 前回記録のバックアップ（内容がある場合のみ）
+# ═══════════════════════════════════════════════════════════════════════════════
+BACKUP_DIR="${LOGS_DIR}/backup_$(date '+%Y%m%d_%H%M%S')"
 NEED_BACKUP=false
 
-if [ -f "${SHOGUN_ROOT}/dashboard.md" ]; then
-    if grep -q "cmd_" "${SHOGUN_ROOT}/dashboard.md" 2>/dev/null; then
+if [ -f "${DASHBOARD_PATH}" ]; then
+    if grep -q "cmd_" "${DASHBOARD_PATH}" 2>/dev/null; then
         NEED_BACKUP=true
     fi
 fi
 
 if [ "$NEED_BACKUP" = true ]; then
     mkdir -p "$BACKUP_DIR" || true
-    cp "${SHOGUN_ROOT}/dashboard.md" "$BACKUP_DIR/" 2>/dev/null || true
+    cp "${DASHBOARD_PATH}" "$BACKUP_DIR/" 2>/dev/null || true
     log_info "📦 前回の記録をバックアップ: $BACKUP_DIR"
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# STEP 2: ダッシュボード初期化
+# STEP 5: ダッシュボード初期化
 # ═══════════════════════════════════════════════════════════════════════════════
 log_info "📊 戦況報告板を初期化中..."
 TIMESTAMP=$(date "+%Y-%m-%d %H:%M")
 
 if [ "$LANG_SETTING" = "ja" ]; then
-    cat > "${SHOGUN_ROOT}/dashboard.md" << EOF
+    cat > "${DASHBOARD_PATH}" << EOF
 # 📊 戦況報告
 最終更新: ${TIMESTAMP}
 
@@ -219,7 +283,7 @@ if [ "$LANG_SETTING" = "ja" ]; then
 なし
 EOF
 else
-    cat > "${SHOGUN_ROOT}/dashboard.md" << EOF
+    cat > "${DASHBOARD_PATH}" << EOF
 # 📊 戦況報告 (Battle Status Report)
 最終更新 (Last Updated): ${TIMESTAMP}
 
@@ -251,7 +315,7 @@ log_success "  └─ ダッシュボード初期化完了 (言語: $LANG_SETTIN
 echo ""
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# STEP 3: 前提コマンド確認
+# STEP 6: 前提コマンド確認
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # Claude Code CLI の存在チェック
@@ -274,11 +338,11 @@ if ! command -v tmux &> /dev/null; then
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# STEP 4: tmux セッション構築（shogun + multiagent）
+# STEP 7: tmux セッション構築
 # ═══════════════════════════════════════════════════════════════════════════════
 # Agent Teams (teammateMode: tmux) は tmux 内で Claude を実行する必要がある。
-# 将軍 → shogun セッション（単独）
-# 家老・目付・足軽 → multiagent セッション（自動移動）
+# 将軍 → ${TMUX_SHOGUN} セッション（単独）
+# 家老・目付・足軽 → ${TMUX_MULTIAGENT} セッション（自動移動）
 #
 # tmux hook (after-split-window) により、Agent Teams が shogun 内に spawn した
 # チームメイトの pane を自動的に multiagent セッションに移動する。
@@ -286,30 +350,30 @@ fi
 log_war "👑 将軍の本陣を構築中..."
 
 # 既存セッションをクリーンアップ
-tmux kill-session -t shogun 2>/dev/null && log_info "  └─ 既存の shogun セッション撤収" || true
-tmux kill-session -t multiagent 2>/dev/null && log_info "  └─ 既存の multiagent セッション撤収" || true
+tmux kill-session -t "${TMUX_SHOGUN}" 2>/dev/null && log_info "  └─ 既存の ${TMUX_SHOGUN} セッション撤収" || true
+tmux kill-session -t "${TMUX_MULTIAGENT}" 2>/dev/null && log_info "  └─ 既存の ${TMUX_MULTIAGENT} セッション撤収" || true
 
 # 将軍用 tmux セッション（Claude Code を起動）
-tmux new-session -d -s shogun -n "shogun" \
-    "cd '${WORK_DIR}' && '${SHOGUN_ROOT}/scripts/claude-shogun' --dangerously-skip-permissions"
+tmux new-session -d -s "${TMUX_SHOGUN}" -n "shogun" \
+    "cd '${WORK_DIR}' && WORK_DIR='${WORK_DIR}' SHOGUN_DATA_DIR='${SHOGUN_DATA_DIR}' '${SHOGUN_ROOT}/scripts/claude-shogun' --dangerously-skip-permissions"
 
 # チームメイト用 tmux セッション（配下の陣）
-tmux new-session -d -s multiagent -n "agents"
-INITIAL_PANE=$(tmux display-message -t multiagent:agents -p '#{pane_id}')
+tmux new-session -d -s "${TMUX_MULTIAGENT}" -n "agents"
+INITIAL_PANE=$(tmux display-message -t "${TMUX_MULTIAGENT}:agents" -p '#{pane_id}')
 
 # tmux フック: shogun で pane が split されたら multiagent に自動移動
 # Agent Teams が teammateMode: tmux で pane を作るたび発火する
 # 初回移動時に空の初期 pane を削除する（2回目以降は既に消えているので無視）
-tmux set-hook -t shogun after-split-window \
-    "move-pane -t multiagent:agents ; select-layout -t multiagent:agents tiled ; run-shell -b 'tmux kill-pane -t ${INITIAL_PANE} 2>/dev/null || true'"
+tmux set-hook -t "${TMUX_SHOGUN}" after-split-window \
+    "move-pane -t ${TMUX_MULTIAGENT}:agents ; select-layout -t ${TMUX_MULTIAGENT}:agents tiled ; run-shell -b 'tmux kill-pane -t ${INITIAL_PANE} 2>/dev/null || true'"
 
-log_success "  └─ 将軍の本陣（shogun）構築完了"
-log_success "  └─ 配下の陣（multiagent）構築完了"
+log_success "  └─ 将軍の本陣（${TMUX_SHOGUN}）構築完了"
+log_success "  └─ 配下の陣（${TMUX_MULTIAGENT}）構築完了"
 log_success "  └─ 自動配備フック設定完了"
 echo ""
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# STEP 5: 将軍にチーム構成の初期指示を送信
+# STEP 8: 将軍にチーム構成の初期指示を送信
 # ═══════════════════════════════════════════════════════════════════════════════
 # Claude Code が起動完了するまで待機し、チーム構成指示を自動送信する。
 # これにより、旧システムと同様に起動時に全エージェントが配備される。
@@ -319,7 +383,7 @@ log_war "⏳ 将軍の起動を待機中..."
 # Claude Code の起動完了を待つ（プロンプト表示を検知）
 READY=false
 for i in $(seq 1 30); do
-    if tmux capture-pane -t shogun:shogun -p 2>/dev/null | grep -qE '❯|>.*$'; then
+    if tmux capture-pane -t "${TMUX_SHOGUN}:shogun" -p 2>/dev/null | grep -qE '❯|>.*$'; then
         READY=true
         break
     fi
@@ -341,16 +405,18 @@ if [ "$READY" = true ]; then
     INIT_PROMPT="${SHOGUN_ROOT}/instructions/shogun.md を読んで将軍として起動せよ。${SHOGUN_ROOT}/CLAUDE.md も読め。${SHOGUN_ROOT}/config/settings.yaml で言語設定を確認せよ。
 
 環境変数 SHOGUN_ROOT=${SHOGUN_ROOT} が設定済みである。shogun システムのファイルは全て \$SHOGUN_ROOT 配下にある。
+ダッシュボードのパスは ${DASHBOARD_PATH} である。
+プロジェクトデータディレクトリは ${SHOGUN_DATA_DIR} である。
 
-TeamCreate でチーム shogun-team を作成し、以下のチームメイトを Task で spawn せよ:
+TeamCreate でチーム ${TEAM_NAME} を作成し、以下のチームメイトを Task で spawn せよ:
 - 家老（karo）: ${SHOGUN_ROOT}/instructions/karo.md を読ませよ。mode は delegate にせよ。
 - 目付（metsuke）: ${SHOGUN_ROOT}/instructions/metsuke.md を読ませよ。${ASHIGARU_SPAWN}
 
 全員が起動したら、殿の指示を待て。"
 
-    tmux send-keys -t shogun:shogun "$INIT_PROMPT"
+    tmux send-keys -t "${TMUX_SHOGUN}:shogun" "$INIT_PROMPT"
     sleep 2
-    tmux send-keys -t shogun:shogun Enter
+    tmux send-keys -t "${TMUX_SHOGUN}:shogun" Enter
     log_success "  └─ チーム構成指示を送信"
 else
     log_info "⚠️  将軍の起動に時間がかかっています"
@@ -368,17 +434,19 @@ echo ""
 echo "  ┌──────────────────────────────────────────────────────────┐"
 echo "  │  Agent Teams 方式（tmux モード）                         │"
 echo "  │                                                          │"
-echo "  │  将軍（shogun）と配下（multiagent）の2陣を構築。        │"
+echo "  │  将軍（${TMUX_SHOGUN}）と配下（${TMUX_MULTIAGENT}）の2陣を構築。"
 echo "  │  チーム構成指示を自動送信済み。                          │"
 echo "  │  Agent Teams がチームメイトを multiagent に自動配備。    │"
 echo "  │                                                          │"
 echo "  │  ── 操作方法 ──                                          │"
 echo "  │                                                          │"
 echo "  │  将軍にアタッチ（指示を出す）:                            │"
-echo "  │    ./shogun.sh  または  tmux attach -t shogun            │"
+echo "  │    .shogun/bin/shogun.sh                                 │"
+echo "  │    tmux attach -t ${TMUX_SHOGUN}                        │"
 echo "  │                                                          │"
 echo "  │  配下にアタッチ（チームメイトを観察）:                    │"
-echo "  │    ./multiagent.sh  または  tmux attach -t multiagent    │"
+echo "  │    .shogun/bin/multiagent.sh                             │"
+echo "  │    tmux attach -t ${TMUX_MULTIAGENT}                    │"
 echo "  │                                                          │"
 echo "  │  セッション一覧:                                          │"
 echo "  │    tmux ls                                               │"
@@ -386,6 +454,9 @@ echo "  │  ペイン切替:                                              │"
 echo "  │    Ctrl+b → 矢印キー                                    │"
 echo "  │  デタッチ（セッションから離脱）:                          │"
 echo "  │    Ctrl+b → d                                            │"
+echo "  │                                                          │"
+echo "  │  撤退:                                                    │"
+echo "  │    .shogun/bin/tettai.sh                                 │"
 echo "  └──────────────────────────────────────────────────────────┘"
 echo ""
 echo "  ════════════════════════════════════════════════════════════"

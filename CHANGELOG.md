@@ -5,7 +5,17 @@
 
 ## 2026-02-08
 
-- 全スクリプトのパス参照を `SHOGUN_ROOT` 環境変数に統一し、任意のディレクトリから実行可能に
+- **プロジェクト単位の独立運用**: 複数プロジェクトを並行管理できるよう全スクリプトを改修
+- `scripts/project-env.sh` 新規作成: 共通変数定義（`PROJECT_NAME_SAFE`, `TMUX_SHOGUN`, `TEAM_NAME` 等を WORK_DIR から自動導出）
+- tmux セッション名を `shogun-<project>` / `multiagent-<project>` に変更
+- Agent Teams チーム名を `shogun-team-<project>` に変更
+- `shutsujin_departure.sh`: 作業ディレクトリに `.shogun/` を自動生成（`project.env`, `bin/` ラッパー, ダッシュボード等）
+- `tettai_retreat.sh`: `--project-dir` オプション追加、WORK_DIR 自動発見ロジック
+- `watchdog.sh`: `--project-dir` オプション追加、PID ファイル管理
+- `switch_account.sh`: `project-env.sh` 対応、再起動ロジックを `shutsujin_departure.sh` に統一
+- `shogun.sh`, `multiagent.sh` を削除 → `.shogun/bin/` ラッパーに置き換え
+- `first_setup.sh`: 旧キューファイル初期化を削除（Agent Teams 移行済み）
+- 全スクリプトのパス参照を `SHOGUN_ROOT` 環境変数に統一
 
 ## 2026-02-06
 
