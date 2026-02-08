@@ -4,7 +4,7 @@
 
 **Claude Code マルチエージェント統率システム**
 
-*コマンド1つで、8体のAIエージェントが並列稼働*
+*コマンド1つで、複数のAIエージェントが Agent Teams で並列稼働*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Claude Code](https://img.shields.io/badge/Claude-Code-blueviolet)](https://claude.ai)
@@ -14,14 +14,18 @@
 
 </div>
 
+> **Fork元:** [yohey-w/multi-agent-shogun](https://github.com/yohey-w/multi-agent-shogun) からのforkです。
+> fork以降の変更は [CHANGELOG.md](CHANGELOG.md) を参照してください。
+
 ---
 
 ## これは何？
 
-**multi-agent-shogun** は、複数の Claude Code インスタンスを同時に実行し、戦国時代の軍制のように統率するシステムです。
+**multi-agent-shogun** は、Claude Code の **Agent Teams** を使って複数のインスタンスを同時に実行し、戦国時代の軍制のように統率するシステムです。
 
 **なぜ使うのか？**
-- 1つの命令で、8体のAIワーカーが並列で実行
+- 1つの命令で、複数のAIワーカーが並列で実行
+- Claude Code の **Agent Teams** 基盤 — SendMessage/TaskCreate でエージェント間通信
 - 待ち時間なし - タスクがバックグラウンドで実行中も次の命令を出せる
 - AIがセッションを跨いであなたの好みを記憶（Memory MCP）
 - ダッシュボードでリアルタイム進捗確認
@@ -33,15 +37,17 @@
     ┌─────────────┐
     │   SHOGUN    │  ← 命令を受け取り、即座に委譲
     └──────┬──────┘
-           │ YAMLファイル + tmux
+           │ Agent Teams API
     ┌──────▼──────┐
     │    KARO     │  ← タスクをワーカーに分配
     └──────┬──────┘
            │
-  ┌─┬─┬─┬─┴─┬─┬─┬─┐
-  │1│2│3│4│5│6│7│8│  ← 8体のワーカーが並列実行
-  └─┴─┴─┴─┴─┴─┴─┴─┘
-      ASHIGARU
+  ┌────────┼────────┐
+  ▼        ▼        ▼
+┌────────┐ ┌──┬──┬──┐
+│METSUKE │ │A1│A2│A3│ ...  ← ワーカーが並列実行
+│(品質)  │ └──┴──┴──┘
+└────────┘   ASHIGARU
 ```
 
 ---
@@ -61,9 +67,9 @@
 
 📥 **リポジトリをダウンロード**
 
-[ZIPダウンロード](https://github.com/yohey-w/multi-agent-shogun/archive/refs/heads/main.zip) して `C:\tools\multi-agent-shogun` に展開
+[ZIPダウンロード](https://github.com/marucc/multi-agent-shogun/archive/refs/heads/main.zip) して `C:\tools\multi-agent-shogun` に展開
 
-*または git を使用:* `git clone https://github.com/yohey-w/multi-agent-shogun.git C:\tools\multi-agent-shogun`
+*または git を使用:* `git clone https://github.com/marucc/multi-agent-shogun.git C:\tools\multi-agent-shogun`
 
 </td>
 </tr>
@@ -89,7 +95,7 @@
 </td>
 <td>
 
-✅ **完了！** 10体のAIエージェントが起動しました。
+✅ **完了！** AIエージェントが起動しました。
 
 </td>
 </tr>
@@ -113,7 +119,7 @@ cd /mnt/c/tools/multi-agent-shogun
 
 ```bash
 # 1. リポジトリをクローン
-git clone https://github.com/yohey-w/multi-agent-shogun.git ~/multi-agent-shogun
+git clone https://github.com/marucc/multi-agent-shogun.git ~/multi-agent-shogun
 cd ~/multi-agent-shogun
 
 # 2. スクリプトに実行権限を付与
@@ -176,9 +182,9 @@ wsl --install
 
 ### `shutsujin_departure.sh` が行うこと：
 - ✅ tmuxセッションを作成（shogun + multiagent）
-- ✅ 全10エージェントでClaude Codeを起動
+- ✅ Agent Teams を有効にしてClaude Codeを起動
 - ✅ 各エージェントに指示書を自動読み込み
-- ✅ キューファイルをリセットして新しい状態に
+- ✅ チーム階層を構築（将軍 → 家老 → 足軽）
 
 **実行後、全エージェントが即座にコマンドを受け付ける準備完了！**
 
@@ -204,17 +210,18 @@ wsl --install
 
 ### ✅ セットアップ後の状態
 
-どちらのオプションでも、**10体のAIエージェント**が自動起動します：
+どちらのオプションでも、AIエージェントが自動起動します：
 
 | エージェント | 役割 | 数 |
 |-------------|------|-----|
-| 🏯 将軍（Shogun） | 総大将 - あなたの命令を受ける | 1 |
-| 📋 家老（Karo） | 管理者 - タスクを分配 | 1 |
-| ⚔️ 足軽（Ashigaru） | ワーカー - 並列でタスク実行 | 8 |
+| 🏯 将軍（Shogun） | 総大将 — あなたの命令を受ける | 1 |
+| 📋 家老（Karo） | 管理者 — タスクを分配 | 1 |
+| 🔍 目付（Metsuke） | 品質保証 — レビュー担当 | 1 |
+| ⚔️ 足軽（Ashigaru） | ワーカー — 並列でタスク実行 | 設定可能（デフォルト: 3） |
 
 tmuxセッションが作成されます：
-- `shogun` - ここに接続してコマンドを出す
-- `multiagent` - ワーカーがバックグラウンドで稼働
+- `shogun` — ここに接続してコマンドを出す
+- `multiagent` — ワーカーがバックグラウンドで稼働
 
 ---
 
@@ -239,8 +246,8 @@ JavaScriptフレームワーク上位5つを調査して比較表を作成せよ
 ```
 
 将軍は：
-1. タスクをYAMLファイルに書き込む
-2. 家老（管理者）に通知
+1. Agent Teams API でタスクを作成
+2. SendMessage で家老（管理者）に指示
 3. 即座にあなたに制御を返す（待つ必要なし！）
 
 その間、家老はタスクを足軽ワーカーに分配し、並列実行します。
@@ -264,11 +271,11 @@ JavaScriptフレームワーク上位5つを調査して比較表を作成せよ
 
 ### ⚡ 1. 並列実行
 
-1つの命令で最大8つの並列タスクを生成：
+1つの命令で複数の並列タスクを生成：
 
 ```
 あなた: 「5つのMCPサーバを調査せよ」
-→ 5体の足軽が同時に調査開始
+→ 足軽が同時に調査開始
 → 数時間ではなく数分で結果が出る
 ```
 
@@ -298,10 +305,12 @@ AIがあなたの好みを記憶します：
             → 複雑な方法を提案しなくなる
 ```
 
-### 📡 4. イベント駆動（ポーリングなし）
+### 📡 4. Agent Teams 通信
 
-エージェントはYAMLファイルで通信し、notify.shで互いを起こします。
-**ポーリングループでAPIコールを浪費しません。**
+エージェント間の通信は Claude Code の **Agent Teams** API で行います：
+- **SendMessage** — エージェント間のダイレクトメッセージ
+- **TaskCreate / TaskUpdate** — タスク管理と割り当て
+- **自動配信** — ポーリング不要、APIコールの浪費なし
 
 ### 📸 5. スクリーンショット連携
 
@@ -320,11 +329,6 @@ screenshot:
 
 **💡 Windowsのコツ:** `Win + Shift + S` でスクショが撮れます。保存先を `settings.yaml` のパスに合わせると、シームレスに連携できます。
 
-こんな時に便利：
-- UIのバグを視覚的に説明
-- エラーメッセージを見せる
-- 変更前後の状態を比較
-
 ### 📁 6. コンテキスト管理
 
 効率的な知識共有のため、3層構造のコンテキストを採用：
@@ -334,11 +338,6 @@ screenshot:
 | Memory MCP | `memory/shogun_memory.jsonl` | セッションを跨ぐ長期記憶 |
 | グローバル | `memory/global_context.md` | システム全体の設定、殿の好み |
 | プロジェクト | `context/{project}.md` | プロジェクト固有の知見 |
-
-この設計により：
-- どの足軽でも任意のプロジェクトを担当可能
-- エージェント切り替え時もコンテキスト継続
-- 関心の分離が明確
 
 ### 汎用コンテキストテンプレート
 
@@ -354,47 +353,9 @@ screenshot:
 | Decisions | 決定事項と理由の記録 |
 | Notes | 自由記述のメモ・気づき |
 
-統一フォーマットにより、どのプロジェクトでも同じ構造で情報を参照可能。
-
 ---
 
-### 🧠 モデル設定
-
-| エージェント | モデル | 思考モード | 理由 |
-|-------------|--------|----------|------|
-| 将軍 | Opus | 無効 | 委譲とダッシュボード更新に深い推論は不要 |
-| 家老 | デフォルト | 有効 | タスク分配には慎重な判断が必要 |
-| 足軽 | デフォルト | 有効 | 実装作業にはフル機能が必要 |
-
-将軍は `MAX_THINKING_TOKENS=0` で拡張思考を無効化し、高レベルな判断にはOpusの能力を維持しつつ、レイテンシとコストを削減。
-
----
-
-## 🎯 設計思想
-
-### なぜ階層構造（将軍→家老→足軽）なのか
-
-1. **単一責任**: 各役割が明確に分離され、混乱しない
-2. **スケーラビリティ**: 足軽を増やしても構造が崩れない
-3. **障害分離**: 1体の足軽が失敗しても他に影響しない
-4. **人間への報告一元化**: 将軍だけが人間とやり取りするため、情報が整理される
-
-### なぜ YAML + notify.sh なのか
-
-1. **ポーリング不要**: イベント駆動でAPIコストを削減
-2. **状態の永続化**: YAMLファイルでタスク状態を追跡可能
-3. **デバッグ容易**: 人間がYAMLを直接読んで状況把握できる
-4. **競合回避**: 各足軽に専用ファイルを割り当て
-
-### なぜ dashboard.md は家老のみが更新するのか
-
-1. **単一更新者**: 競合を防ぐため、更新責任者を1人に限定
-2. **情報集約**: 家老は全足軽の報告を受ける立場なので全体像を把握
-3. **割り込み防止**: 将軍が更新すると、殿の入力中に割り込む恐れあり
-
----
-
-## 🛠️ スキル
+### 🛠️ スキル
 
 初期状態ではスキルはありません。
 運用中にダッシュボード（dashboard.md）の「スキル化候補」から承認して増やしていきます。
@@ -421,7 +382,29 @@ dashboard.md の「スキル化候補」に上がる
 承認すれば家老に指示してスキルを作成
 ```
 
-スキルはユーザ主導で増やすもの。自動で増えると管理不能になるため、「これは便利」と判断したものだけを残す。
+---
+
+## 🏛️ 設計思想
+
+### なぜ階層構造（将軍→家老→足軽）なのか
+
+1. **即時応答**: 将軍は即座に委譲してあなたに制御を返す
+2. **並列実行**: 家老が複数の足軽に同時にタスクを分配
+3. **関心の分離**: 将軍は「何を」、家老は「誰に」を決定
+4. **品質ゲート**: 目付が独立してレビューを実施
+
+### なぜ Agent Teams なのか
+
+- **ネイティブ統合**: Claude Code の Agent Teams API を直接使用
+- **自動メッセージ配信**: ポーリング不要、ファイルベースの回避策不要
+- **タスク管理**: TaskCreate/TaskUpdate/TaskList が組み込み済み
+- **確実な通信**: SendMessage による配信保証
+
+### なぜ dashboard.md は家老のみが更新するのか
+
+1. **単一更新者**: 競合を防ぐため、更新責任者を1人に限定
+2. **情報集約**: 家老は全足軽の報告を受ける立場なので全体像を把握
+3. **割り込み防止**: 将軍が更新すると、殿の入力中に割り込む恐れあり
 
 ---
 
@@ -468,45 +451,17 @@ claude mcp list
 
 ---
 
-## 🌍 実用例
-
-### 例1: 調査タスク
-
-```
-あなた: 「AIコーディングアシスタント上位5つを調査して比較せよ」
-
-実行される処理:
-1. 将軍が家老に委譲
-2. 家老が割り当て:
-   - 足軽1: GitHub Copilotを調査
-   - 足軽2: Cursorを調査
-   - 足軽3: Claude Codeを調査
-   - 足軽4: Codeiumを調査
-   - 足軽5: Amazon CodeWhispererを調査
-3. 5体が同時に調査
-4. 結果がdashboard.mdに集約
-```
-
-### 例2: PoC準備
-
-```
-あなた: 「このNotionページのプロジェクトでPoC準備: [URL]」
-
-実行される処理:
-1. 家老がMCP経由でNotionコンテンツを取得
-2. 足軽2: 確認すべき項目をリスト化
-3. 足軽3: 技術的な実現可能性を調査
-4. 足軽4: PoC計画書を作成
-5. 全結果がdashboard.mdに集約、会議の準備完了
-```
-
----
-
 ## ⚙️ 設定
 
-### 言語設定
+### エージェント数
 
 `config/settings.yaml` を編集：
+
+```yaml
+ashigaru_count: 3   # 足軽の数（1〜8）
+```
+
+### 言語設定
 
 ```yaml
 language: ja   # 日本語のみ
@@ -540,12 +495,10 @@ language: en   # 日本語 + 英訳併記
 │  shutsujin_departure.sh                                             │
 │      │                                                              │
 │      ├──▶ tmuxセッションを作成                                       │
-│      │         • "shogun"セッション（1ペイン）                        │
-│      │         • "multiagent"セッション（9ペイン、3x3グリッド）        │
+│      │         • "shogun"セッション（将軍エージェント）               │
+│      │         • "multiagent"セッション（家老+目付+足軽）            │
 │      │                                                              │
-│      ├──▶ キューファイルとダッシュボードをリセット                     │
-│      │                                                              │
-│      └──▶ 全エージェントでClaude Codeを起動                          │
+│      └──▶ Agent Teams を有効にしてClaude Codeを起動                  │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -604,19 +557,6 @@ tmux kill-session -t multiagent
 
 </details>
 
-<details>
-<summary><b>便利なエイリアス</b>（クリックで展開）</summary>
-
-`~/.bashrc` に追加：
-
-```bash
-alias shogun='cd /mnt/c/tools/multi-agent-shogun && ./shutsujin_departure.sh'
-alias css='tmux attach-session -t shogun'
-alias csm='tmux attach-session -t multiagent'
-```
-
-</details>
-
 ---
 
 ## 📁 ファイル構成
@@ -630,22 +570,24 @@ multi-agent-shogun/
 │  ┌─────────────────── セットアップスクリプト ───────────────────┐
 ├── install.bat               # Windows: 初回セットアップ
 ├── first_setup.sh            # Ubuntu/Mac: 初回セットアップ
-├── shutsujin_departure.sh    # 毎日の起動（指示書自動読み込み）
+├── shutsujin_departure.sh    # 毎日の起動
+├── tettai_retreat.sh         # 終了・撤退
 │  └────────────────────────────────────────────────────────────┘
 │
 ├── instructions/             # エージェント指示書
 │   ├── shogun.md             # 将軍の指示書
 │   ├── karo.md               # 家老の指示書
+│   ├── metsuke.md            # 目付の指示書
 │   └── ashigaru.md           # 足軽の指示書
 │
+├── scripts/
+│   ├── claude-shogun         # Claude Code起動ラッパー
+│   └── notify.sh             # tmux send-keysラッパー
+│
 ├── config/
-│   └── settings.yaml         # 言語その他の設定
+│   └── settings.yaml         # 言語、エージェント数の設定
 │
-├── queue/                    # 通信ファイル
-│   ├── shogun_to_karo.yaml   # 将軍から家老へのコマンド
-│   ├── tasks/                # 各ワーカーのタスクファイル
-│   └── reports/              # ワーカーレポート
-│
+├── context/                  # プロジェクトコンテキスト
 ├── memory/                   # Memory MCP保存場所
 ├── dashboard.md              # リアルタイム状況一覧
 └── CLAUDE.md                 # Claude用プロジェクトコンテキスト
@@ -713,6 +655,8 @@ tmux attach-session -t multiagent
 ## 🙏 クレジット
 
 [Claude-Code-Communication](https://github.com/Akira-Papa/Claude-Code-Communication) by Akira-Papa をベースに開発。
+
+[yohey-w/multi-agent-shogun](https://github.com/yohey-w/multi-agent-shogun) からfork。
 
 ---
 
