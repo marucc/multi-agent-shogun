@@ -43,7 +43,7 @@
 !scripts/inbox_write.sh
 !scripts/ntfy.sh
 !scripts/ntfy_listener.sh
-!scripts/setup_githooks.sh
+
 
 # SayTask (sample template only, not actual data)
 !saytask/
