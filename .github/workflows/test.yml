@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - 'feature/**'  # feature/で始まる全ブランチ
   pull_request:
 
 jobs:
