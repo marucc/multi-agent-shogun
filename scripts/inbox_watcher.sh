@@ -103,18 +103,14 @@ send_cli_command() {
     local actual_cmd="$cmd"
     case "$CLI_TYPE" in
         codex)
-            # Codex: /clearはセッション終了→再起動が必要, /model非対応→スキップ
+            # Codex: /clear不存在→/newで新規会話開始, /model非対応→スキップ
+            # /clearはCodexでは未定義コマンドでCLI終了してしまうため、/newに変換
             if [[ "$cmd" == "/clear" ]]; then
-                echo "[$(date)] [SEND-KEYS] Codex /clear: sending /clear + restart for $AGENT_ID" >&2
-                timeout 5 tmux send-keys -t "$PANE_TARGET" "/clear" 2>/dev/null
+                echo "[$(date)] [SEND-KEYS] Codex /clear→/new: starting new conversation for $AGENT_ID" >&2
+                timeout 5 tmux send-keys -t "$PANE_TARGET" "/new" 2>/dev/null
                 sleep 0.3
                 timeout 5 tmux send-keys -t "$PANE_TARGET" Enter 2>/dev/null
                 sleep 3
-                # Codex exits to bash after /clear — restart it
-                timeout 5 tmux send-keys -t "$PANE_TARGET" "codex --dangerously-bypass-approvals-and-sandbox --no-alt-screen" 2>/dev/null
-                sleep 0.3
-                timeout 5 tmux send-keys -t "$PANE_TARGET" Enter 2>/dev/null
-                sleep 5
                 return 0
             fi
             if [[ "$cmd" == /model* ]]; then
