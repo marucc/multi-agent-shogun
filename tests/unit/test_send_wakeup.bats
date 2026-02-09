@@ -27,6 +27,8 @@
 #   T-CODEX-002: send_cli_command — codex /model → skip
 #   T-CODEX-003: C-u sent when unread=0 and agent is idle
 #   T-CODEX-004: C-u NOT sent when agent is busy
+#   T-COPILOT-001: send_cli_command — copilot /clear → Ctrl-C + restart
+#   T-COPILOT-002: send_cli_command — copilot /model → skip
 
 # --- セットアップ ---
 
@@ -167,6 +169,20 @@ send_cli_command() {
             if [[ "\$cmd" == /model* ]]; then
                 echo "SKIP_MODEL:\$cmd" >> "$PTY_LOG"
                 echo "[SKIP] \$cmd not supported on codex" >&2
+                return 0
+            fi
+            ;;
+        copilot)
+            if [[ "\$cmd" == "/clear" ]]; then
+                echo "COPILOT_RESTART" >> "$PTY_LOG"
+                echo "[SEND-KEYS] Copilot /clear: Ctrl-C + restart" >&2
+                timeout 5 tmux send-keys -t "\$PANE_TARGET" C-c 2>/dev/null
+                timeout 5 tmux send-keys -t "\$PANE_TARGET" "copilot --yolo" Enter 2>/dev/null
+                return 0
+            fi
+            if [[ "\$cmd" == /model* ]]; then
+                echo "SKIP_MODEL:\$cmd" >> "$PTY_LOG"
+                echo "[SKIP] \$cmd not supported on copilot" >&2
                 return 0
             fi
             ;;
@@ -627,4 +643,43 @@ MOCK
 
     # C-u cleanup exists
     grep -q 'C-u' "$WATCHER_SCRIPT"
+
+    # Copilot handler exists
+    grep -q 'copilot --yolo' "$WATCHER_SCRIPT"
+    grep -q 'not supported on copilot' "$WATCHER_SCRIPT"
+}
+
+# --- T-COPILOT-001: copilot /clear → Ctrl-C + restart ---
+
+@test "T-COPILOT-001: send_cli_command sends Ctrl-C + copilot restart for copilot /clear" {
+    run bash -c '
+        source "'"$TEST_HARNESS"'"
+        CLI_TYPE="copilot"
+        send_cli_command "/clear"
+    '
+    [ "$status" -eq 0 ]
+
+    # Should trigger copilot restart, NOT /clear or /new
+    grep -q "COPILOT_RESTART" "$PTY_LOG"
+    ! grep -q "SENDKEYS_CLI:/clear" "$PTY_LOG"
+    ! grep -q "SENDKEYS_CLI:/new" "$PTY_LOG"
+
+    # Verify Ctrl-C and copilot --yolo were sent
+    grep -q "send-keys.*C-c" "$MOCK_LOG"
+    grep -q "send-keys.*copilot --yolo" "$MOCK_LOG"
+}
+
+# --- T-COPILOT-002: copilot /model → skip ---
+
+@test "T-COPILOT-002: send_cli_command skips /model for copilot" {
+    run bash -c '
+        source "'"$TEST_HARNESS"'"
+        CLI_TYPE="copilot"
+        send_cli_command "/model opus"
+    '
+    [ "$status" -eq 0 ]
+
+    # Should log skip
+    grep -q "SKIP_MODEL:/model opus" "$PTY_LOG"
+    ! grep -q "SENDKEYS_CLI:/model" "$PTY_LOG"
 }
