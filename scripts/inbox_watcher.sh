@@ -340,6 +340,13 @@ send_cli_command() {
     local effective_cli
     effective_cli=$(get_effective_cli_type)
 
+    # Safety: never inject CLI commands into the shogun pane.
+    # Shogun is controlled by the Lord; keystroke injection can clobber human input.
+    if [ "$AGENT_ID" = "shogun" ]; then
+        echo "[$(date)] [SKIP] shogun: suppressing CLI command injection ($cmd)" >&2
+        return 0
+    fi
+
     # CLI別コマンド変換
     local actual_cmd="$cmd"
     case "$effective_cli" in
@@ -421,6 +428,14 @@ agent_is_busy() {
     return 1  # idle
 }
 
+# ─── Pane focus detection (human safety) ───
+# If the target pane is currently active, avoid injecting keystrokes.
+pane_is_active() {
+    local active=""
+    active=$(timeout 2 tmux display-message -p -t "$PANE_TARGET" '#{pane_active}' 2>/dev/null || true)
+    [ "$active" = "1" ]
+}
+
 # ─── Send wake-up nudge ───
 # Layered approach:
 #   1. If agent has active inotifywait self-watch → skip (agent wakes itself)
@@ -451,6 +466,14 @@ send_wakeup() {
         return 0
     fi
 
+    # Shogun: if the pane is focused, never inject keys (it can clobber the Lord's input).
+    # Instead, show a tmux message. If not focused, we can safely send the normal nudge.
+    if [ "$AGENT_ID" = "shogun" ] && pane_is_active; then
+        echo "[$(date)] [DISPLAY] shogun pane is active — showing nudge: inbox${unread_count}" >&2
+        timeout 2 tmux display-message -t "$PANE_TARGET" -d 5000 "inbox${unread_count}" 2>/dev/null || true
+        return 0
+    fi
+
     # 優先度3: tmux send-keys（テキストとEnterを分離 — Codex TUI対策）
     echo "[$(date)] [SEND-KEYS] Sending nudge to $PANE_TARGET for $AGENT_ID" >&2
     if timeout 5 tmux send-keys -t "$PANE_TARGET" "$nudge" 2>/dev/null; then
@@ -473,6 +496,13 @@ send_wakeup_with_escape() {
     local effective_cli
     effective_cli=$(get_effective_cli_type)
     local c_ctrl_state="skipped"
+
+    # Safety: never send Escape escalation to shogun. It can wipe the Lord's input.
+    if [ "$AGENT_ID" = "shogun" ]; then
+        echo "[$(date)] [SKIP] shogun: suppressing Escape escalation; sending plain nudge" >&2
+        send_wakeup "$unread_count"
+        return 0
+    fi
 
     # Codex CLI: ESC は「中断」になりやすく、人間操作中の事故も多い。
     # Phase 2 の Escape エスカレーションは無効化し、通常 nudge のみに落とす。
@@ -536,7 +566,10 @@ process_unread() {
         fi
         FIRST_UNREAD_SEEN=0
         if ! agent_is_busy; then
-            timeout 2 tmux send-keys -t "$PANE_TARGET" C-u 2>/dev/null
+            # Shogun is human-controlled; never clear the input line automatically.
+            if [ "$AGENT_ID" != "shogun" ]; then
+                timeout 2 tmux send-keys -t "$PANE_TARGET" C-u 2>/dev/null
+            fi
         fi
         return 0
     fi
@@ -662,7 +695,10 @@ for s in data.get('specials', []):
         # Clear stale nudge text from input field (Codex CLI prefills last input on idle).
         # Only send C-u when agent is idle — during Working it would be disruptive.
         if ! agent_is_busy; then
-            timeout 2 tmux send-keys -t "$PANE_TARGET" C-u 2>/dev/null
+            # Shogun is human-controlled; never clear the input line automatically.
+            if [ "$AGENT_ID" != "shogun" ]; then
+                timeout 2 tmux send-keys -t "$PANE_TARGET" C-u 2>/dev/null
+            fi
         fi
     fi
 }
