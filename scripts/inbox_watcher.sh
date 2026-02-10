@@ -63,6 +63,12 @@ ESCALATE_PHASE1=${ESCALATE_PHASE1:-120}
 ESCALATE_PHASE2=${ESCALATE_PHASE2:-240}
 ESCALATE_COOLDOWN=${ESCALATE_COOLDOWN:-300}
 
+# ─── Nudge throttle ───
+# Avoid spamming the same "inboxN" into the pane every timeout tick.
+LAST_NUDGE_TS=${LAST_NUDGE_TS:-0}
+LAST_NUDGE_COUNT=${LAST_NUDGE_COUNT:-""}
+NUDGE_COOLDOWN_SEC=${NUDGE_COOLDOWN_SEC:-60}
+
 # ─── Phase feature flags (cmd_107 Phase 1/2/3) ───
 # ASW_PHASE:
 #   1 = self-watch base (compatible)
@@ -113,6 +119,24 @@ EOF
 
 disable_normal_nudge() {
     [ "${ASW_DISABLE_NORMAL_NUDGE:-0}" = "1" ]
+}
+
+should_throttle_nudge() {
+    local unread_count="${1:-0}"
+    local now
+    now=$(date +%s)
+
+    if [ "${LAST_NUDGE_COUNT:-}" = "$unread_count" ] && [ "${LAST_NUDGE_TS:-0}" -gt 0 ]; then
+        local age=$((now - LAST_NUDGE_TS))
+        if [ "$age" -lt "${NUDGE_COOLDOWN_SEC:-60}" ]; then
+            echo "[$(date)] [SKIP] Throttling nudge for $AGENT_ID: inbox${unread_count} (${age}s < ${NUDGE_COOLDOWN_SEC}s)" >&2
+            return 0
+        fi
+    fi
+
+    LAST_NUDGE_COUNT="$unread_count"
+    LAST_NUDGE_TS="$now"
+    return 1
 }
 
 is_valid_cli_type() {
@@ -423,6 +447,10 @@ send_wakeup() {
         return 0
     fi
 
+    if should_throttle_nudge "$unread_count"; then
+        return 0
+    fi
+
     # 優先度3: tmux send-keys（テキストとEnterを分離 — Codex TUI対策）
     echo "[$(date)] [SEND-KEYS] Sending nudge to $PANE_TARGET for $AGENT_ID" >&2
     if timeout 5 tmux send-keys -t "$PANE_TARGET" "$nudge" 2>/dev/null; then
@@ -445,6 +473,14 @@ send_wakeup_with_escape() {
     local effective_cli
     effective_cli=$(get_effective_cli_type)
     local c_ctrl_state="skipped"
+
+    # Codex CLI: ESC は「中断」になりやすく、人間操作中の事故も多い。
+    # Phase 2 の Escape エスカレーションは無効化し、通常 nudge のみに落とす。
+    if [[ "$effective_cli" == "codex" ]]; then
+        echo "[$(date)] [SKIP] codex: suppressing Escape escalation for $AGENT_ID; sending plain nudge" >&2
+        send_wakeup "$unread_count"
+        return 0
+    fi
 
     if [ "${FINAL_ESCALATION_ONLY:-0}" = "1" ]; then
         echo "[$(date)] [SKIP] FINAL_ESCALATION_ONLY=1, suppressing phase2 nudge for $AGENT_ID" >&2
@@ -598,10 +634,19 @@ for s in data.get('specials', []):
         else
             # Phase 3 (4+ min): /clear (throttled to once per 5 min)
             if [ "$LAST_CLEAR_TS" -lt "$((now - ESCALATE_COOLDOWN))" ]; then
-                echo "[$(date)] ESCALATION Phase 3: Agent $AGENT_ID unresponsive for ${age}s. Sending /clear." >&2
-                send_cli_command "/clear"
-                LAST_CLEAR_TS=$now
-                FIRST_UNREAD_SEEN=0  # Reset — will re-detect on next cycle
+                local effective_cli
+                effective_cli=$(get_effective_cli_type)
+                if [[ "$effective_cli" == "codex" ]]; then
+                    # Codex /clear -> /new は会話を切ってしまうため、安全側に倒す。
+                    echo "[$(date)] ESCALATION Phase 3: $AGENT_ID unresponsive for ${age}s, but cli=codex — skipping /clear." >&2
+                    FIRST_UNREAD_SEEN=$now  # Reset timer (no destructive action)
+                    send_wakeup "$normal_count"
+                else
+                    echo "[$(date)] ESCALATION Phase 3: Agent $AGENT_ID unresponsive for ${age}s. Sending /clear." >&2
+                    send_cli_command "/clear"
+                    LAST_CLEAR_TS=$now
+                    FIRST_UNREAD_SEEN=0  # Reset — will re-detect on next cycle
+                fi
             else
                 # Cooldown active — fall back to Escape+nudge
                 echo "[$(date)] $normal_count unread for $AGENT_ID (${age}s — /clear cooldown, using Escape+nudge)" >&2

@@ -540,8 +540,9 @@ MOCK
     '
     [ "$status" -eq 0 ]
 
-    grep -q "send-keys.*Escape" "$MOCK_LOG"
     grep -q "send-keys.*inbox2" "$MOCK_LOG"
+    # Codex: Escape escalation is suppressed (avoid interrupting work / human typing)
+    ! grep -q "send-keys.*Escape" "$MOCK_LOG"
     ! grep -q "send-keys.*C-c" "$MOCK_LOG"
 }
 
