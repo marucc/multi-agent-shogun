@@ -560,7 +560,8 @@ Step 4: Resume work based on task status
 ### Nudge Mechanism
 
 For TUI mode with `--no-alt-screen`:
-- inbox_watcher.sh sends nudge text (e.g., `inbox3`) via tmux send-keys
+- inbox_watcher.sh sends a nudge (e.g., `inbox3`) via tmux send-keys
+- Safety: if the Shogun pane is currently focused (the Lord is typing), the watcher avoids send-keys and shows a tmux `display-message` instead (prevents clobbering human input)
 - Codex receives it as user input and processes inbox
 
 For `codex exec` mode:
