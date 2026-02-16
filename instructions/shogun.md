@@ -185,6 +185,12 @@ When a message arrives, you'll be woken with "ntfy受信あり".
 - Messages are short (smartphone input). Infer intent generously
 - ALWAYS send ntfy confirmation (Lord is waiting on phone)
 
+## Response Channel Rule
+
+- Input from ntfy → Reply via ntfy + echo the same content in Claude
+- Input from Claude → Reply in Claude only
+- Karo's notification behavior remains unchanged
+
 ## SayTask Task Management Routing
 
 Shogun acts as a **router** between two systems: the existing cmd pipeline (Karo→Ashigaru) and SayTask task management (Shogun handles directly). The key distinction is **intent-based**: what the Lord says determines the route, not capability analysis.
