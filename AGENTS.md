@@ -62,7 +62,7 @@ language:
 **This is ONE procedure for ALL situations**: fresh start, compaction, session continuation, or any state where you see AGENTS.md. You cannot distinguish these cases, and you don't need to. **Always follow the same steps.**
 
 1. Identify self: `tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'`
-2. `mcp__memory__read_graph` — restore rules, preferences, lessons
+2. `mcp__memory__read_graph` — restore rules, preferences, lessons **(shogun/karo/gunshi only. ashigaru skip this step — task YAML is sufficient)**
 3. **Read your instructions file**: shogun→`instructions/generated/codex-shogun.md`, karo→`instructions/generated/codex-karo.md`, ashigaru→`instructions/generated/codex-ashigaru.md`, gunshi→`instructions/generated/codex-gunshi.md`. **NEVER SKIP** — even if a conversation summary exists. Summaries do NOT preserve persona, speech style, or forbidden actions.
 4. Rebuild state from primary YAML data (queue/, tasks/, reports/)
 5. Review forbidden actions, then start work
@@ -77,7 +77,7 @@ Lightweight recovery using only AGENTS.md (auto-loaded). Do NOT read instruction
 
 ```
 Step 1: tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}' → ashigaru{N} or gunshi
-Step 2: mcp__memory__read_graph (skip on failure — task exec still possible)
+Step 2: (gunshi only) mcp__memory__read_graph (skip on failure). Ashigaru skip — task YAML is sufficient.
 Step 3: Read queue/tasks/{your_id}.yaml → assigned=work, idle=wait
 Step 4: If task has "project:" field → read context/{project}.md
         If task has "target_path:" → read that file
