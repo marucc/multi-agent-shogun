@@ -554,8 +554,10 @@ send_context_reset() {
     effective_cli=$(get_effective_cli_type)
 
     # Safety: never inject CLI commands into the shogun pane.
-    if [ "$AGENT_ID" = "shogun" ]; then
-        echo "[$(date)] [SKIP] shogun: suppressing context reset" >&2
+    # Karo also excluded: Karo manages complex running state and should not be /clear'd
+    # automatically. Only ashigaru/gunshi should receive automatic context resets.
+    if [ "$AGENT_ID" = "shogun" ] || [ "$AGENT_ID" = "karo" ]; then
+        echo "[$(date)] [SKIP] $AGENT_ID: suppressing context reset (not ashigaru/gunshi)" >&2
         return 0
     fi
 
