@@ -321,6 +321,27 @@ fi
 echo ""
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# STEP 3c: commands/ のコピー（スラッシュコマンド配備）
+# ═══════════════════════════════════════════════════════════════════════════════
+log_info "📋 スラッシュコマンドを配備中..."
+
+COMMANDS_SRC="${SHOGUN_ROOT}/commands"
+COMMANDS_DST="${WORK_DIR}/.claude/commands"
+
+if [ -d "$COMMANDS_SRC" ]; then
+    mkdir -p "$COMMANDS_DST"
+    for cmd_file in "$COMMANDS_SRC"/*.md; do
+        if [ -f "$cmd_file" ]; then
+            cp "$cmd_file" "$COMMANDS_DST/"
+            log_success "  └─ $(basename "$cmd_file") 配備完了"
+        fi
+    done
+else
+    log_info "  └─ ${COMMANDS_SRC} なし、スキップ"
+fi
+echo ""
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # STEP 4: 前回記録のバックアップ（内容がある場合のみ）
 # ═══════════════════════════════════════════════════════════════════════════════
 BACKUP_DIR="${LOGS_DIR}/backup_$(date '+%Y%m%d_%H%M%S')"
@@ -535,6 +556,10 @@ ${PENDING_TASKS_REF}
 TeamCreate でチーム ${TEAM_NAME} を作成し、以下のチームメイトを Task で spawn せよ:
 - 家老（karo）: ${SHOGUN_ROOT}/instructions/karo.md を読ませよ。mode は delegate にせよ。
 - 目付（metsuke）: ${SHOGUN_ROOT}/instructions/metsuke.md を読ませよ。${ASHIGARU_SPAWN}
+
+次のファイルを読み込んでプロジェクト概要を把握せよ。
+CLAUDE.md
+${DASHBOARD_PATH}/project_context.md
 
 全員が起動したら、殿の指示を待て。"
 
