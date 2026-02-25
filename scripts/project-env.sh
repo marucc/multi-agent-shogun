@@ -16,6 +16,7 @@
 #   DASHBOARD_PATH     - ダッシュボードファイルパス
 #   STATUS_DIR         - ステータスディレクトリ
 #   LOGS_DIR           - ログディレクトリ
+#   SESSIONS_DIR       - セッションログディレクトリ
 #   BIN_DIR            - ラッパースクリプトディレクトリ
 #
 # 使い方:
@@ -58,4 +59,5 @@ TASK_DIR="$HOME/.claude/tasks/${TEAM_NAME}"
 DASHBOARD_PATH="${SHOGUN_DATA_DIR}/dashboard.md"
 STATUS_DIR="${SHOGUN_DATA_DIR}/status"
 LOGS_DIR="${SHOGUN_DATA_DIR}/logs"
+SESSIONS_DIR="${LOGS_DIR}/sessions"
 BIN_DIR="${SHOGUN_DATA_DIR}/bin"
