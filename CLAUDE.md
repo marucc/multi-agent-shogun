@@ -64,6 +64,12 @@ multi-agent-shogunは、Claude Code の **Agent Teams** を使ったマルチエ
   (reviewer)    (worker)
 ```
 
+## 作戦立案（将軍のみ）
+
+将軍は非軽微な指示を受けた際、`.shogun/plans/` に作戦書を作成し殿に確認してから家老に委譲する。
+作戦書はコンパクション後の文脈復元に使う永続ファイルである。
+詳細は instructions/shogun.md の「作戦立案プロトコル」を参照。
+
 ## 禁止コマンド（全エージェント必須）
 
 ```
@@ -286,6 +292,7 @@ WORK_DIR/.shogun/                          # プロジェクト固有データ�
 │   ├── tettai.sh                          # 撤退ラッパー
 │   ├── shogun.sh                          # tmux attach
 │   └── multiagent.sh                      # tmux attach
+├── plans/                                 # 作戦書（将軍が作成、コンパクション復帰用）
 ├── status/
 │   ├── shogun_context.md                  # 将軍の状況認識（コンパクション・再開復帰用）
 │   └── pending_tasks.yaml                 # 撤退時の未完了タスク

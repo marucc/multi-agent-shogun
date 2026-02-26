@@ -3,6 +3,22 @@
 [yohey-w/multi-agent-shogun](https://github.com/yohey-w/multi-agent-shogun) の `9e23e2c` からfork。
 以降の変更履歴を記す。
 
+## 2026-02-26
+
+- **コンパクション耐性向上**: 将軍のコンテキスト圧縮後の性能劣化を防ぐ4施策を導入
+  - **作戦立案プロトコル（施策A）**: 非軽微な指示に対し `.shogun/plans/` に作戦書を作成し殿に確認してから家老に委譲する仕組みを追加。計画をファイルとして永続化しコンパクション後の文脈復元に使用
+    - `instructions/shogun.md`: YAML workflow を 6→9 step に拡張（triage, create_plan, update_shogun_context を追加）。「作戦立案プロトコル」セクション新設（作戦書テンプレート、WHAT/WHYのみでHOWは家老に委ねるルール）
+    - `CLAUDE.md`: 「作戦立案（将軍のみ）」概要セクション追加、ファイル構成に `plans/` ディレクトリ追加
+    - `shutsujin_departure.sh`: STEP 5d で `.shogun/plans/` ディレクトリ初期化を追加
+  - **自己完結型タスク記述（施策B）**: タスク自体に全情報を含め、コンパクション後でも TaskGet だけで作業可能にする
+    - `instructions/shogun.md`: 「自己完結型タスク記述（Shogun → Karo）」セクション新設（背景、殿の指示原文、判断済み事項、作戦書パス、成功基準）
+    - `instructions/karo.md`: 「自己完結型タスク記述（Karo → Ashigaru）」セクション新設（目的、背景、作業内容、成果物、参照ファイル、関連教訓、完了条件）
+  - **コンテキスト節約（施策C）**: 将軍のコンテキスト膨張を抑制するガイドラインを追加
+    - `instructions/shogun.md`: 「コンテキスト節約」セクション新設。大規模探索・技術調査は Task tool サブエージェントに委託し、将軍は統括業務に集中（team_name なしの一時利用は F001 違反ではない旨を明記）
+  - **SGATE-1 コンテキスト更新ゲート（施策D）**: TaskCreate/SendMessage(karo) の直前に shogun_context.md 更新を強制
+    - `instructions/shogun.md`: 「将軍の状況認識ファイル」セクションを SGATE-1 付きに置換。テンプレートに「現在の作戦書」「直近のアクション」を追加、「殿とのやり取り要約」を廃止
+    - `shutsujin_departure.sh`: shogun_context.md 初期テンプレートに「現在の作戦書」「直近のアクション」を追加、「殿とのやり取り要約」を削除
+
 ## 2026-02-23
 
 - **教訓管理パイプライン**: タスク完了時に教訓を蓄積し次タスクに自動注入する知識循環を導入（参考: simokitafresh/multi-agent-shogun `cc66473`）
