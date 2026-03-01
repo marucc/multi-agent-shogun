@@ -3,6 +3,28 @@
 [yohey-w/multi-agent-shogun](https://github.com/yohey-w/multi-agent-shogun) の `9e23e2c` からfork。
 以降の変更履歴を記す。
 
+## 2026-03-02
+
+- **将軍コンテキスト節約**: コンパクション復帰コストを~20K→~6Kトークンに削減し、有効なコンテキスト空間を最大化
+  - **shogun.md 2層化**: 指示書をコア（毎回読む）とリファレンス（必要時のみ）に分割
+    - `instructions/shogun_core.md`: **新規作成** (171行)。コンパクション復帰時に毎回読むコンパクト版。CLAUDE.md 共通ルールとの重複を排除
+    - `instructions/shogun_ref.md`: **新規作成** (311行)。spawn テンプレート・作戦書テンプレート・Memory MCP 詳細等のリファレンス
+    - `instructions/shogun.md`: 廃止（trash で退避）
+    - `CLAUDE.md`: 復帰手順・作戦立案参照・指示書一覧の参照パスを `shogun_core.md` / `shogun_ref.md` に変更
+    - `commands/jintate.md`: 将軍ロール再読み込みの参照パスを `shogun_core.md` に変更
+    - `shutsujin_departure.sh`: 起動プロンプトを `shogun_core.md` に変更。通常モードでは初回のみ `shogun_ref.md` も読むよう追記
+  - **家老報告の効率化**: 将軍の dashboard.md 読込を最小化
+    - `instructions/karo.md`: 「将軍への報告フォーマット（コンテキスト節約）」セクション追加。完了タスクID + サマリ + 要対応有無 + 次アクションを必須化（良い例・悪い例付き）
+  - **SGATE-1 頻度最適化**: 毎回更新からチェックポイント方式 (CP-1〜CP-5) に変更
+    - `instructions/shogun_core.md`: SGATE-1 をチェックポイント方式に変更。同一指示内の複数 SendMessage 毎の更新は不要に
+    - `instructions/shogun_ref.md`: 新旧ルールの差分と 5 セクション版 shogun_context.md テンプレートを記載
+    - `shutsujin_departure.sh`: shogun_context.md 初期テンプレートを 7→5 セクションに簡素化（「直近のアクション」削除、「殿の指示」と「作戦書」を統合）
+  - **plan mode 導入**: 将軍の YAML `mode: delegate` → `mode: plan` に変更
+    - `instructions/shogun_core.md`: EnterPlanMode/ExitPlanMode を使った作戦立案ワークフローを明記。軽微/非軽微のトリアージ表を記載
+    - `instructions/shogun_ref.md`: plan mode の詳細（判断基準テーブル、探索フェーズの制約）
+  - **サブエージェントのペイン分離**: Task tool サブエージェントが multiagent セッションに移動する問題を解消
+    - `shutsujin_departure.sh`: tmux after-split-window フックをカウンターベースに改修。チームメイト数 (karo+metsuke+ashigaru) 回だけ発火し自動無効化、以降のサブエージェントは shogun ペインに残る
+
 ## 2026-02-26
 
 - **コンパクション耐性向上**: 将軍のコンテキスト圧縮後の性能劣化を防ぐ4施策を導入

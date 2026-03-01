@@ -36,7 +36,7 @@ source .shogun/project.env && bash ${WORK_DIR}/.shogun/bin/compact_team.sh --dry
 
 以下を順に読み直す:
 
-1. `${SHOGUN_ROOT}/instructions/shogun.md` — 将軍の指示書
+1. `${SHOGUN_ROOT}/instructions/shogun_core.md` — 将軍の指示書（コア）
 2. `${SHOGUN_ROOT}/CLAUDE.md` — 全体ルール
 3. `.shogun/status/shogun_context.md` — 将軍の状況認識（コンパクション前に自分が書いた状態メモ）
 4. `.shogun/dashboard.md` — 現在の戦況
@@ -48,7 +48,7 @@ source .shogun/project.env && bash ${WORK_DIR}/.shogun/bin/compact_team.sh --dry
 【将軍ロール再注入完了】
 
 ■ 読み込み済み
-- instructions/shogun.md ✅
+- instructions/shogun_core.md ✅
 - CLAUDE.md ✅
 - shogun_context.md ✅ / なし
 - dashboard.md ✅

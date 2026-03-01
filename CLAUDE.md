@@ -21,7 +21,7 @@ multi-agent-shogunは、Claude Code の **Agent Teams** を使ったマルチエ
 ### 復帰手順
 
 1. **対応する instructions を読む**:
-   - shogun（team_leader）→ instructions/shogun.md
+   - shogun（team_leader）→ instructions/shogun_core.md
    - karo（task_manager）→ instructions/karo.md
    - metsuke（reviewer）→ instructions/metsuke.md
    - ashigaru（worker）→ instructions/ashigaru.md
@@ -68,7 +68,7 @@ multi-agent-shogunは、Claude Code の **Agent Teams** を使ったマルチエ
 
 将軍は非軽微な指示を受けた際、`.shogun/plans/` に作戦書を作成し殿に確認してから家老に委譲する。
 作戦書はコンパクション後の文脈復元に使う永続ファイルである。
-詳細は instructions/shogun.md の「作戦立案プロトコル」を参照。
+詳細は instructions/shogun_core.md の「plan mode による作戦立案」を参照。
 
 ## 禁止コマンド（全エージェント必須）
 
@@ -361,7 +361,8 @@ ashigaru_count: 3   # 足軽の数（1〜8）
 翻訳はユーザーの言語に合わせて自然な表現にする。
 
 ## 指示書
-- instructions/shogun.md - 将軍の指示書
+- instructions/shogun_core.md - 将軍の指示書（コア、コンパクション復帰時に毎回読む）
+- instructions/shogun_ref.md - 将軍の指示書（リファレンス、初回起動時・テンプレート参照時のみ）
 - instructions/karo.md - 家老の指示書
 - instructions/metsuke.md - 目付の指示書
 - instructions/ashigaru.md - 足軽の指示書

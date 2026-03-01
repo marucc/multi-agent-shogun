@@ -462,13 +462,11 @@ if [ ! -f "${SHOGUN_CONTEXT_PATH}" ]; then
 # 将軍の状況認識
 最終更新: ${TIMESTAMP}
 
-## 殿からの現在の指示
-（初期状態 — 殿の指示を待っている）
+## 殿の指示と作戦書
+- 指示: （初期状態 — 殿の指示を待っている）
+- 作戦書: なし
 
-## 現在の作戦書
-なし
-
-## 家老への指示状況
+## タスク状況
 （なし）
 
 ## 待ち状態
@@ -476,9 +474,6 @@ if [ ! -f "${SHOGUN_CONTEXT_PATH}" ]; then
 
 ## 判断メモ
 （なし）
-
-## 直近のアクション
-出陣完了。殿の指示を待機中
 EOF
     log_success "  └─ shogun_context.md 初期化完了"
 else
@@ -547,9 +542,44 @@ INITIAL_PANE=$(tmux display-message -t "${TMUX_MULTIAGENT}:agents" -p '#{pane_id
 
 # tmux フック: shogun で pane が split されたら multiagent に自動移動
 # Agent Teams が teammateMode: tmux で pane を作るたび発火する
-# 初回移動時に空の初期 pane を削除する（2回目以降は既に消えているので無視）
+# カウンターベース: チームメイト数だけ発火し、以降は自動無効化
+# これにより Task tool のサブエージェントは shogun ペインに残る
+EXPECTED_TEAMMATES=$((2 + ASHIGARU_COUNT))  # karo(1) + metsuke(1) + ashigaru(N)
+MOVE_COUNTER="${STATUS_DIR}/.pane_move_count"
+echo "0" > "${MOVE_COUNTER}"
+
+# カウンターベースのフックスクリプト
+HOOK_SCRIPT="${STATUS_DIR}/pane_move_hook.sh"
+cat > "${HOOK_SCRIPT}" << HOOKEOF
+#!/bin/bash
+COUNTER_FILE="${MOVE_COUNTER}"
+EXPECTED="${EXPECTED_TEAMMATES}"
+TMUX_MA="${TMUX_MULTIAGENT}"
+TMUX_SH="${TMUX_SHOGUN}"
+INITIAL="${INITIAL_PANE}"
+LAYOUT_SCRIPT="${SHOGUN_ROOT}/scripts/tmux-grid-layout.sh"
+
+COUNT=\$(cat "\$COUNTER_FILE" 2>/dev/null || echo "0")
+COUNT=\$((COUNT + 1))
+echo "\$COUNT" > "\$COUNTER_FILE"
+
+if [ "\$COUNT" -le "\$EXPECTED" ]; then
+    # チームメイト → multiagent に移動
+    tmux move-pane -t "\${TMUX_MA}:agents"
+    bash "\$LAYOUT_SCRIPT" "\${TMUX_MA}:agents" &
+    tmux kill-pane -t "\$INITIAL" 2>/dev/null || true
+fi
+
+if [ "\$COUNT" -ge "\$EXPECTED" ]; then
+    # 全チームメイト移動完了 → フック解除
+    tmux set-hook -u -t "\$TMUX_SH" after-split-window
+fi
+HOOKEOF
+chmod +x "${HOOK_SCRIPT}"
+
+# フック設定（スクリプト呼び出し）
 tmux set-hook -t "${TMUX_SHOGUN}" after-split-window \
-    "move-pane -t ${TMUX_MULTIAGENT}:agents ; run-shell -b '${SHOGUN_ROOT}/scripts/tmux-grid-layout.sh \"${TMUX_MULTIAGENT}:agents\" ; tmux kill-pane -t ${INITIAL_PANE} 2>/dev/null || true'"
+    "run-shell -b '${HOOK_SCRIPT}'"
 
 log_success "  └─ 将軍の本陣（${TMUX_SHOGUN}）構築完了"
 log_success "  └─ 配下の陣（${TMUX_MULTIAGENT}）構築完了"
@@ -595,7 +625,7 @@ if [ "$READY" = true ]; then
 前回の未完了タスクが ${STATUS_DIR}/pending_tasks.yaml に保存されている。読み込んで TaskCreate で再登録せよ。"
         fi
 
-        INIT_PROMPT="前回セッションから再開する。${SHOGUN_ROOT}/instructions/shogun.md と ${SHOGUN_ROOT}/CLAUDE.md を再読せよ。${SHOGUN_ROOT}/config/settings.yaml で言語設定を確認せよ。
+        INIT_PROMPT="前回セッションから再開する。${SHOGUN_ROOT}/instructions/shogun_core.md と ${SHOGUN_ROOT}/CLAUDE.md を再読せよ。${SHOGUN_ROOT}/config/settings.yaml で言語設定を確認せよ。
 
 環境変数 SHOGUN_ROOT=${SHOGUN_ROOT} が設定済みである。
 ダッシュボードのパスは ${DASHBOARD_PATH} である（前回の内容を引き継ぎ済み）。
@@ -612,7 +642,7 @@ ${PENDING_TASKS_REF}
         # ═══════════════════════════════════════════════════════════════════
         # 通常モード: 新規セッション
         # ═══════════════════════════════════════════════════════════════════
-        INIT_PROMPT="${SHOGUN_ROOT}/instructions/shogun.md を読んで将軍として起動せよ。${SHOGUN_ROOT}/CLAUDE.md も読め。${SHOGUN_ROOT}/config/settings.yaml で言語設定を確認せよ。
+        INIT_PROMPT="${SHOGUN_ROOT}/instructions/shogun_core.md を読んで将軍として起動せよ。${SHOGUN_ROOT}/instructions/shogun_ref.md も初回なので読め。${SHOGUN_ROOT}/CLAUDE.md も読め。${SHOGUN_ROOT}/config/settings.yaml で言語設定を確認せよ。
 
 環境変数 SHOGUN_ROOT=${SHOGUN_ROOT} が設定済みである。shogun システムのファイルは全て \$SHOGUN_ROOT 配下にある。
 ダッシュボードのパスは ${DASHBOARD_PATH} である。
